@@ -130,7 +130,7 @@ export const Settings: React.FC<SettingsProps> = ({ user, onBack, onLogout, isDa
              )}
 
              <p className="text-[10px] text-gray-400 mb-3 leading-relaxed">
-                 To fix "Unable to reach authentication service" or CORS errors, paste the URL below into your <b>Supabase Dashboard</b> under <b>Authentication > URL Configuration</b> as your <b>Site URL</b>.
+                 To fix "Unable to reach authentication service" or CORS errors, paste the URL below into your <b>Supabase Dashboard</b> under <b>Authentication &gt; URL Configuration</b> as your <b>Site URL</b>.
              </p>
              
              <div className="bg-black/50 border border-white/10 rounded-xl p-3 flex items-center justify-between group">
