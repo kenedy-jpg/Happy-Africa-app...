@@ -1,0 +1,9 @@
+{
+  "name": "Happy Africa full final app",
+  "description": "A mobile-first short-video social platform focusing on fast feeds and smooth playback.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
