@@ -191,7 +191,7 @@ export const backend = {
     async getMyVideos(userId: string): Promise<Video[]> {
         try {
             const remoteVideos = await backend.content.fetchVideosSafe((q) => 
-                q.eq('user_id', userId).order('created_at', { ascending: false })
+                q.eq('user_id', userId).order('created_at', { ascending: false }).limit(20)
             );
             const localPosts = getPersistentUserPosts(userId);
             const remoteIds = new Set(remoteVideos.map(r => r.id));
