@@ -239,7 +239,6 @@ export const backend = {
         url: signedUrl,
         description: description || '',
         poster_url: posterBase64 || null,
-        duration: duration || 15,
         likes_count: 0,
         comments_count: 0,
         shares_count: 0,
