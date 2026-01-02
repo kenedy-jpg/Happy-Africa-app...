@@ -91,6 +91,7 @@ export const App: React.FC = () => {
              backend.auth.setUser(user);
              syncUserState(user.id);
              claimLocalVideos(user);
+             setFeedRefreshTrigger(prev => prev + 1);
           }
       }
       
