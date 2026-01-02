@@ -230,13 +230,12 @@ export const backend = {
 
       if (uploadError) throw uploadError;
 
-      const { data: signedUrlData, error: signedError } = await supabase.storage.from("videos").createSignedUrl(fileName, 60 * 60 * 24 * 365); // 1 year
-      if (signedError) throw signedError;
-      const signedUrl = signedUrlData.signedUrl;
+      const { data: urlData } = supabase.storage.from("videos").getPublicUrl(fileName);
+      const publicUrl = urlData.publicUrl;
 
       const { error: insertError } = await supabase.from("videos").insert({
         user_id: user.id,
-        url: signedUrl,
+        url: publicUrl,
         description: description || '',
         poster_url: posterBase64 || null,
         likes_count: 0,
