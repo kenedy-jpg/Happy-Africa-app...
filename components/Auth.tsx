@@ -170,7 +170,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onClose, initialMode = 'sig
                           <p className="text-[10px] text-gray-700 font-bold uppercase tracking-tight">To fix this instantly:</p>
                           <ol className="text-[10px] text-gray-600 space-y-1 ml-3 list-decimal font-medium">
                               <li>Open <b>Supabase Dashboard</b></li>
-                              <li>Go to <b>Authentication</b> > <b>Settings</b></li>
+                              <li>Go to <b>Authentication</b> &gt; <b>Settings</b></li>
                               <li>Toggle <b>Confirm email</b> to <b>OFF</b></li>
                               <li>Click <b>Save</b> at the bottom</li>
                           </ol>
