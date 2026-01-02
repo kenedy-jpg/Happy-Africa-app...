@@ -30,6 +30,19 @@ const mapProfileToUser = (profile: any, userId?: string): User => {
       followers: 0, following: 0, likes: 0, coins: 0
   };
 
+  // If profile is auth user object
+  if (profile.id && profile.email && !profile.username) {
+    return {
+      id: profile.id,
+      username: profile.user_metadata?.username || profile.email.split('@')[0],
+      displayName: profile.user_metadata?.full_name || profile.user_metadata?.username || 'User',
+      avatarUrl: profile.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${profile.user_metadata?.username || 'User'}&background=random`,
+      followers: 0, following: 0, likes: 0, coins: 0,
+      email: profile.email
+    };
+  }
+
+  // Normal profile from db
   return {
     id: profile.id || userId || 'unknown',
     username: profile.username || profile.email?.split('@')[0] || 'user',
@@ -67,12 +80,10 @@ export const backend = {
             const { data: { session }, error } = await supabase.auth.getSession();
             if (error) throw error;
             if (session) {
-                const user = await this.getProfile(session.user.id);
-                if (user) {
-                    this.setUser(user);
-                    setSupabaseToken(session.access_token);
-                    return { user, access_token: session.access_token };
-                }
+                const user = mapProfileToUser(session.user, session.user.id);
+                this.setUser(user);
+                setSupabaseToken(session.access_token);
+                return { user, access_token: session.access_token };
             }
         } catch (err) { 
             console.warn("[Auth] Using local fallback");
@@ -85,8 +96,7 @@ export const backend = {
           password: password
       });
       if (error) throw error;
-      const user = await this.getProfile(data.user!.id);
-      if (!user) throw new Error("Profile sync failed");
+      const user = mapProfileToUser(data.user, data.user!.id);
       this.setUser(user);
       return user;
     },

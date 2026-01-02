@@ -78,14 +78,19 @@ export const App: React.FC = () => {
       if (['SIGNED_IN', 'TOKEN_REFRESHED'].includes(event)) {
           if (session) {
              setSupabaseToken(session.access_token);
-             const user = await backend.auth.getProfile(session.user.id);
-             if (user) {
-                 setIsLoggedIn(true);
-                 setCurrentUser(user);
-                 backend.auth.setUser(user);
-                 syncUserState(user.id);
-                 claimLocalVideos(user);
-             }
+             const user = {
+               id: session.user.id,
+               username: session.user.user_metadata?.username || session.user.email!.split('@')[0],
+               displayName: session.user.user_metadata?.full_name || session.user.user_metadata?.username || 'User',
+               avatarUrl: session.user.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${session.user.user_metadata?.username || 'User'}&background=random`,
+               followers: 0, following: 0, likes: 0, coins: 0,
+               email: session.user.email
+             };
+             setIsLoggedIn(true);
+             setCurrentUser(user);
+             backend.auth.setUser(user);
+             syncUserState(user.id);
+             claimLocalVideos(user);
           }
       }
       
@@ -154,12 +159,17 @@ export const App: React.FC = () => {
 
   const syncUserState = async (userId: string) => {
       try {
-          const [interactions, chats, notifs, videos] = await Promise.all([
+          const [profile, interactions, chats, notifs, videos] = await Promise.all([
+              backend.auth.getProfile(userId),
               backend.user.getUserInteractions(userId),
               backend.messaging.getConversations(userId),
               backend.notifications.getNotifications(userId),
               backend.content.getMyVideos(userId)
           ]);
+          if (profile) {
+              setCurrentUser(profile);
+              backend.auth.setUser(profile);
+          }
           setLikedVideoIds(new Set(interactions.likedVideoIds));
           setFollowedUserIds(new Set(interactions.followedUserIds));
           setBookmarkedVideoIds(new Set(interactions.bookmarkedVideoIds));
