@@ -21,7 +21,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange, is
 
   return (
     <div 
-      className={`absolute bottom-0 left-0 w-full flex items-center justify-between px-2 z-50 text-[10px] font-bold pt-2 pb-2 pb-safe transition-all duration-300 border-t ${
+      className={`absolute bottom-0 left-0 w-full flex items-center justify-between px-2 z-50 text-[10px] font-bold pt-2 pb-2 pb-safe transition-all duration-300 border-l border-r border-b ${
         isTransparent 
           ? 'bg-gradient-to-t from-black/95 via-black/60 to-transparent border-transparent text-white' 
           : 'bg-brand-indigo border-white/5 text-gray-400'

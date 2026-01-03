@@ -310,7 +310,7 @@ export const App: React.FC = () => {
 
   return (
     <ErrorBoundary>
-        <div className="flex h-full w-full bg-brand-indigo overflow-hidden relative border-[8px] border-brand-pink shadow-[inset_0_0_25px_rgba(255,79,154,0.6)]">
+        <div className="flex h-full w-full bg-brand-indigo overflow-hidden relative shadow-[inset_0_0_25px_rgba(255,79,154,0.6)]">
           {showSplash && <SplashScreen />}
           
           {isOfflineMode && !isAuthLoading && (
