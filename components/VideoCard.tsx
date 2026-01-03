@@ -215,8 +215,8 @@ export const VideoCard = memo<VideoCardProps>(({
             </div>
 
             <button className="flex flex-col items-center group" onClick={(e) => { e.stopPropagation(); onRequireAuth(() => onToggleLike?.(video.id)); }}>
-                <Heart size={32} className={`transition-all duration-300 ${isLiked ? 'fill-brand-pink text-brand-pink scale-125' : 'text-white group-hover:scale-110'}`} />
-                <span className="text-[11px] font-bold mt-1 drop-shadow-md">{formatNumber(video.likes + (isLiked ? 1 : 0))}</span>
+                <Heart size={32} className={`transition-all duration-300 ${isLiked ? 'fill-brand-pink text-brand-pink scale-125' : 'text-brand-gold group-hover:scale-110'}`} />
+                <span className="text-[11px] font-bold mt-1 drop-shadow-md text-brand-gold">{formatNumber(video.likes + (isLiked ? 1 : 0))}</span>
             </button>
 
             <button className="flex flex-col items-center group" onClick={(e) => { e.stopPropagation(); onOpenComments(video.id); }}>
