@@ -123,6 +123,17 @@ export const backend = {
   },
 
   content: {
+    async getSignedUrl(path: string): Promise<string> {
+      try {
+        const { data, error } = await supabase.storage.from("videos").createSignedUrl(path, 31536000); // 1 year
+        if (error) throw error;
+        return data.signedUrl;
+      } catch (e) {
+        console.error('Failed to get signed URL:', e);
+        return '';
+      }
+    },
+
     async fetchVideosSafe(queryModifier: (query: any) => any): Promise<Video[]> {
         try {
             const { data: vData, error: vError } = await queryModifier(supabase.from("videos").select("*"));
@@ -131,32 +142,48 @@ export const backend = {
             
             const userIds = Array.from(new Set(vData.map((v: any) => v.user_id))).filter(id => !!id);
             if (userIds.length === 0) {
-                return vData.map((v: any) => ({
-                    id: v.id.toString(),
-                    url: v.url || v.video_url || v.media_url, 
-                    poster: v.poster_url || 'https://picsum.photos/400/800',
-                    description: v.description || '',
-                    hashtags: v.hashtags || [],
-                    likes: v.likes_count || 0,
-                    comments: v.comments_count || 0,
-                    shares: v.shares_count || 0,
-                    user: mapProfileToUser(null, v.user_id),
-                    musicTrack: v.music_track || 'Original Sound',
-                    category: v.category || 'general',
-                    location: v.location_name,
-                    duration: v.duration || 15,
-                    isLocal: false
+                return await Promise.all(vData.map(async (v: any) => {
+                    let url = v.url || v.video_url || v.media_url;
+                    if (v.file_path) {
+                        url = await this.getSignedUrl(v.file_path);
+                    } else if (v.url && v.url.includes('/public/videos/')) {
+                        const path = v.url.split('/public/videos/')[1];
+                        url = await this.getSignedUrl(path);
+                    }
+                    return {
+                        id: v.id.toString(),
+                        url: url, 
+                        poster: v.poster_url || 'https://picsum.photos/400/800',
+                        description: v.description || '',
+                        hashtags: v.hashtags || [],
+                        likes: v.likes_count || 0,
+                        comments: v.comments_count || 0,
+                        shares: v.shares_count || 0,
+                        user: mapProfileToUser(null, v.user_id),
+                        musicTrack: v.music_track || 'Original Sound',
+                        category: v.category || 'general',
+                        location: v.location_name,
+                        duration: v.duration || 15,
+                        isLocal: false
+                    };
                 }));
             }
 
             const { data: pData, error: pError } = await supabase.from("profiles").select("*").in("id", userIds);
             const profileMap = new Map(pData?.map(p => [p.id, p]) || []);
             
-            return vData.map((v: any) => {
+            return await Promise.all(vData.map(async (v: any) => {
+                let url = v.url || v.video_url || v.media_url;
+                if (v.file_path) {
+                    url = await this.getSignedUrl(v.file_path);
+                } else if (v.url && v.url.includes('/public/videos/')) {
+                    const path = v.url.split('/public/videos/')[1];
+                    url = await this.getSignedUrl(path);
+                }
                 const durationVal = v.duration ? parseFloat(v.duration) : 15;
                 return {
                     id: v.id.toString(),
-                    url: v.url || v.video_url || v.media_url, 
+                    url: url, 
                     poster: v.poster_url || 'https://picsum.photos/400/800',
                     description: v.description || '',
                     hashtags: v.hashtags || [],
@@ -170,7 +197,7 @@ export const backend = {
                     duration: isNaN(durationVal) || durationVal <= 0 ? 15 : durationVal,
                     isLocal: false
                 };
-            });
+            }));
         } catch (e: any) { 
             console.error("[Backend] Supabase fetch error:", e?.message || e);
             throw e; 
@@ -235,7 +262,7 @@ export const backend = {
 
       const { error: insertError } = await supabase.from("videos").insert({
         user_id: user.id,
-        url: publicUrl,
+        file_path: fileName,
         description: description || '',
         poster_url: posterBase64 || null,
         duration: duration || null,
