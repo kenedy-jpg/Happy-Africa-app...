@@ -146,8 +146,8 @@ export const backend = {
                     let url = v.url || v.video_url || v.media_url;
                     if (v.file_path) {
                         url = await this.getSignedUrl(v.file_path);
-                    } else if (v.url && v.url.includes('/public/videos/')) {
-                        const path = v.url.split('/public/videos/')[1];
+                    } else if (v.url && (v.url.includes('/public/videos/') || !v.url.startsWith('http'))) {
+                        const path = v.url.includes('/public/videos/') ? v.url.split('/public/videos/')[1] : v.url;
                         url = await this.getSignedUrl(path);
                     }
                     return {
@@ -176,8 +176,8 @@ export const backend = {
                 let url = v.url || v.video_url || v.media_url;
                 if (v.file_path) {
                     url = await this.getSignedUrl(v.file_path);
-                } else if (v.url && v.url.includes('/public/videos/')) {
-                    const path = v.url.split('/public/videos/')[1];
+                } else if (v.url && (v.url.includes('/public/videos/') || !v.url.startsWith('http'))) {
+                    const path = v.url.includes('/public/videos/') ? v.url.split('/public/videos/')[1] : v.url;
                     url = await this.getSignedUrl(path);
                 }
                 const durationVal = v.duration ? parseFloat(v.duration) : 15;
