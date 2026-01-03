@@ -238,6 +238,8 @@ export const backend = {
         url: publicUrl,
         description: description || '',
         poster_url: posterBase64 || null,
+        duration: duration || null,
+        is_published: true,
         likes_count: 0,
         comments_count: 0,
         shares_count: 0,
