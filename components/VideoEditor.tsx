@@ -63,7 +63,7 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({ fileUrl, images, clips
   const isSlideshow = !!images && images.length > 0;
   const isMultiClip = clips.length > 0;
   const slideDuration = isAutoSync ? 0.8 : DEFAULT_SLIDE_DURATION; 
-  const [totalDuration, setTotalDuration] = useState(isSlideshow ? images.length * slideDuration : (isMultiClip ? clips.reduce((acc, c) => acc + (c.endTime - c.startTime)/1000, 0) : 15));
+  const [totalDuration, setTotalDuration] = useState(isSlideshow ? images.length * slideDuration : (isMultiClip ? clips.reduce((acc, c) => acc + (c.endTime - c.startTime)/1000, 0) : 300));
   const [speedSegments, setSpeedSegments] = useState<{start: number, end: number, rate: number}[]>([]);
   const [isRendering, setIsRendering] = useState(false);
   const [renderProgress, setRenderProgress] = useState(0);
@@ -260,7 +260,7 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({ fileUrl, images, clips
                        ))}
                    </div>
                 ) : (
-                    <video ref={videoRef} src={isMultiClip ? clips[currentClipIndex]?.url : fileUrl} crossOrigin="anonymous" className={`w-full h-full object-contain transition-all duration-300 ${selectedEffect === 'vhs' ? 'sepia contrast-125' : selectedEffect === 'retro' ? 'grayscale' : ''}`} playsInline loop={!isMultiClip} onLoadedMetadata={() => !isMultiClip && setTotalDuration(videoRef.current?.duration || 15)} />
+                    <video ref={videoRef} src={isMultiClip ? clips[currentClipIndex]?.url : fileUrl} crossOrigin="anonymous" className={`w-full h-full object-contain transition-all duration-300 ${selectedEffect === 'vhs' ? 'sepia contrast-125' : selectedEffect === 'retro' ? 'grayscale' : ''}`} playsInline loop={!isMultiClip} onLoadedMetadata={() => !isMultiClip && setTotalDuration(videoRef.current?.duration || 300)} />
                 )}
                 {overlays.map(o => {
                     const pos = getPos(o);
