@@ -220,13 +220,13 @@ export const VideoCard = memo<VideoCardProps>(({
             </button>
 
             <button className="flex flex-col items-center group" onClick={(e) => { e.stopPropagation(); onOpenComments(video.id); }}>
-                <MessageCircle size={32} className="text-white group-hover:scale-110 transition-transform" />
-                <span className="text-[11px] font-bold mt-1 drop-shadow-md">{formatNumber(video.comments + addedCommentCount)}</span>
+                <MessageCircle size={32} className="text-brand-gold group-hover:scale-110 transition-transform" />
+                <span className="text-[11px] font-bold mt-1 drop-shadow-md text-brand-gold">{formatNumber(video.comments + addedCommentCount)}</span>
             </button>
 
             <button className="flex flex-col items-center group" onClick={(e) => { e.stopPropagation(); onOpenShare(video); }}>
-                <Share2 size={32} className="text-white group-hover:scale-110 transition-transform" />
-                <span className="text-[11px] font-bold mt-1 drop-shadow-md">{formatNumber(video.shares)}</span>
+                <Share2 size={32} className="text-brand-gold group-hover:scale-110 transition-transform" />
+                <span className="text-[11px] font-bold mt-1 drop-shadow-md text-brand-gold">{formatNumber(video.shares)}</span>
             </button>
 
             <div className="w-11 h-11 bg-gradient-to-tr from-gray-800 to-gray-600 rounded-full flex items-center justify-center border-4 border-white/20 animate-spin-slow cursor-pointer" onClick={(e) => { e.stopPropagation(); onNavigate?.({ name: 'sound', id: 's1', title: video.musicTrack || 'Original Sound' }); }}>
