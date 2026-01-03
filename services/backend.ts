@@ -125,7 +125,7 @@ export const backend = {
   content: {
     async getSignedUrl(path: string): Promise<string> {
       try {
-        const { data, error } = await supabase.storage.from("videos").createSignedUrl(path, 31536000); // 1 year
+        const { data, error } = await supabase.storage.from("videos").createSignedUrl(path, 604800); // 1 week
         if (error) throw error;
         return data.signedUrl;
       } catch (e) {
@@ -147,7 +147,7 @@ export const backend = {
                     if (v.file_path) {
                         url = await this.getSignedUrl(v.file_path);
                     } else if (v.url && (v.url.includes('/public/videos/') || !v.url.startsWith('http'))) {
-                        const path = v.url.includes('/public/videos/') ? v.url.split('/public/videos/')[1] : v.url;
+                        const path = decodeURIComponent(v.url.includes('/public/videos/') ? v.url.split('/public/videos/')[1] : v.url);
                         url = await this.getSignedUrl(path);
                     }
                     return {
@@ -163,7 +163,7 @@ export const backend = {
                         musicTrack: v.music_track || 'Original Sound',
                         category: v.category || 'general',
                         location: v.location_name,
-                        duration: v.duration || 15,
+                        duration: v.duration || 60,
                         isLocal: false
                     };
                 }));
@@ -177,7 +177,7 @@ export const backend = {
                 if (v.file_path) {
                     url = await this.getSignedUrl(v.file_path);
                 } else if (v.url && (v.url.includes('/public/videos/') || !v.url.startsWith('http'))) {
-                    const path = v.url.includes('/public/videos/') ? v.url.split('/public/videos/')[1] : v.url;
+                    const path = decodeURIComponent(v.url.includes('/public/videos/') ? v.url.split('/public/videos/')[1] : v.url);
                     url = await this.getSignedUrl(path);
                 }
                 const durationVal = v.duration ? parseFloat(v.duration) : 15;
@@ -194,7 +194,7 @@ export const backend = {
                     musicTrack: v.music_track || 'Original Sound',
                     category: v.category || 'general',
                     location: v.location_name,
-                    duration: isNaN(durationVal) || durationVal <= 0 ? 15 : durationVal,
+                    duration: isNaN(durationVal) || durationVal <= 0 ? 60 : durationVal,
                     isLocal: false
                 };
             }));
