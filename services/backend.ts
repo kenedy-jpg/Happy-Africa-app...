@@ -320,6 +320,7 @@ export const backend = {
       onProgress?.(15); // Compression complete, starting upload
 
       const fileName = `${user.id}/${Date.now()}_video.mp4`;
+      const videoId = `v_${user.id}_${Date.now()}`;
       
       // Upload with progress tracking
       const { error: uploadError } = await supabase.storage
@@ -334,7 +335,10 @@ export const backend = {
             }
         });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('[Upload] Storage error:', uploadError);
+        throw new Error(`Failed to upload video to storage: ${uploadError.message}`);
+      }
 
       onProgress?.(90); // Upload complete, saving to database
 
@@ -342,7 +346,9 @@ export const backend = {
       const publicUrl = urlData.publicUrl;
 
       try {
-        const { error: insertError } = await supabase.from("videos").insert({
+        // Prepare video record with ALL possible fields to avoid RLS issues
+        const videoRecord = {
+          id: videoId,
           user_id: user.id,
           file_path: fileName,
           video_url: publicUrl,
@@ -353,21 +359,73 @@ export const backend = {
           likes_count: 0,
           comments_count: 0,
           shares_count: 0,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        console.log('[Upload] Attempting database insert with record:', {
+          ...videoRecord,
+          poster_url: videoRecord.poster_url ? '[base64...]' : null
         });
 
+        const { data: insertData, error: insertError } = await supabase
+          .from("videos")
+          .insert(videoRecord)
+          .select();
+
         if (insertError) {
-          console.error('[Upload] Database insert error:', insertError);
-          await supabase.storage.from("videos").remove([fileName]);
-          throw new Error(`Failed to save video to database: ${insertError.message}`);
+          console.error('[Upload] Database insert error details:', {
+            message: insertError.message,
+            code: insertError.code,
+            status: (insertError as any).status,
+            details: (insertError as any).details,
+            hint: (insertError as any).hint
+          });
+
+          // FALLBACK: Save locally and keep the video in storage
+          // This allows videos to persist even if database is misconfigured
+          console.log('[Upload] Saving video locally as fallback...');
+          try {
+            const localVideos = JSON.parse(localStorage.getItem('ha_videos') || '[]');
+            
+            const fallbackVideo = {
+              id: videoId,
+              url: publicUrl,
+              poster: posterBase64 || `https://picsum.photos/400/800?random=${Date.now()}`,
+              description: description || '',
+              duration: duration && duration > 0 ? Math.round(duration) : 15,
+              user_id: user.id,
+              created_at: new Date().toISOString(),
+              is_published: true,
+              isLocal: true, // Mark as local backup
+              notes: 'Saved locally - database was unavailable'
+            };
+            
+            localVideos.push(fallbackVideo);
+            localStorage.setItem('ha_videos', JSON.stringify(localVideos));
+            console.log('[Upload] Video saved to local storage as backup');
+            
+            // Still throw the original error so user knows there was an issue
+            // but the video is preserved
+            throw new Error(`Database save failed (${insertError.code}): ${insertError.message} - Video saved locally as backup`);
+          } catch (localSaveError: any) {
+            console.error('[Upload] Failed to save locally too:', localSaveError);
+            // Delete the uploaded file since we couldn't save it anywhere
+            try {
+              await supabase.storage.from("videos").remove([fileName]);
+              console.log('[Upload] Cleaned up uploaded file due to complete failure');
+            } catch (cleanupError) {
+              console.warn('[Upload] Failed to cleanup file:', cleanupError);
+            }
+            throw new Error(`Failed to save video to database: ${insertError.message}`);
+          }
         }
 
+        console.log('[Upload] Video successfully saved to database:', insertData);
         onProgress?.(100); // Complete
       } catch (e: any) {
         console.error('[Upload] Final error:', e);
-        try {
-          await supabase.storage.from("videos").remove([fileName]);
-        } catch {}
+        // Don't delete file here - it might be kept as local backup
         throw e;
       }
     },

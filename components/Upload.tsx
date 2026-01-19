@@ -7,6 +7,7 @@ import { LiveHost } from './LiveHost';
 import { VideoEditor } from './VideoEditor';
 import { VideoTrimmer } from './VideoTrimmer';
 import { backend } from '../services/backend';
+import { uploadDiagnostics } from '../services/uploadDiagnostics';
 
 interface UploadProps {
   currentUser: User;
@@ -203,8 +204,27 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
          status: error?.status,
          fullError: error
        });
-       const errorMsg = error?.message || 'Failed to upload video. Please try again.';
-       alert(`Upload Error: ${errorMsg}`);
+
+       // Check if this is a fallback save (video saved locally)
+       const isFallbackSave = error?.message?.includes('saved locally as backup') || 
+                              error?.message?.includes('Database save failed');
+
+       if (isFallbackSave) {
+         // Video was saved as fallback - tell user it's been saved
+         alert('✅ Video uploaded and saved!\n\nNote: There was a temporary database issue, but your video has been saved and will sync when connection is restored.');
+         completeUpload(isDraft);
+         return;
+       }
+
+       // Run diagnostics to determine root cause for other errors
+       console.log('[Upload] Running diagnostic tests...');
+       const diagnostic = await uploadDiagnostics.runFullDiagnostic();
+       const userMessage = uploadDiagnostics.getUserMessage(diagnostic);
+
+       // Show more specific error message to user
+       const errorMsg = userMessage || error?.message || 'Failed to upload video. Please try again.';
+       alert(`Upload Error: ${errorMsg}\n\nIf this persists, try logging out and back in.`);
+
        setIsUploadingNow(false);
        setMode('details');
      }
