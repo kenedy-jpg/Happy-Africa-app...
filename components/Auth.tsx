@@ -46,6 +46,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onClose, initialMode = 'sig
   const [loginIdentifier, setLoginIdentifier] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
+  const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -87,14 +88,18 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onClose, initialMode = 'sig
   };
 
   const handleSignupSubmit = async () => {
-      if (!username || !email || !signupPassword) {
-          setError("All fields are required");
+      if (!fullName || !username || !email || !signupPassword) {
+          setError("Full name, username, email, and password are all required");
+          return;
+      }
+      if (fullName.trim().length < 2) {
+          setError("Please enter your real full name (at least 2 characters)");
           return;
       }
       setIsLoading(true);
       setError('');
       try {
-          await backend.auth.signup({ username, email, phone }, signupPassword);
+          await backend.auth.signup({ username, email, phone, fullName }, signupPassword);
           setIsLoading(false);
           setStep('interests'); 
       } catch (err: any) {
@@ -208,6 +213,20 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onClose, initialMode = 'sig
           
           <div className="flex flex-col gap-4">
               <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-500 ml-1">Full Name *</label>
+                  <div className="relative">
+                      <User size={18} className="absolute left-4 top-4 text-gray-400" />
+                      <input 
+                        type="text"
+                        placeholder="Your real full name"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        className="w-full bg-gray-50 border border-gray-300 rounded-xl p-4 pl-12 outline-none focus:border-brand-pink focus:ring-2 focus:ring-brand-pink/10 transition-all text-black"
+                      />
+                  </div>
+              </div>
+
+              <div className="space-y-1">
                   <label className="text-xs font-bold text-gray-500 ml-1">Username</label>
                   <div className="relative">
                       <User size={18} className="absolute left-4 top-4 text-gray-400" />
@@ -260,7 +279,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onClose, initialMode = 'sig
 
           <button 
             onClick={handleSignupSubmit} 
-            disabled={!username || !email || !signupPassword || isLoading}
+            disabled={!fullName || !username || !email || !signupPassword || isLoading}
             className="bg-brand-pink text-white font-bold py-4 rounded-xl mt-4 disabled:opacity-50 flex justify-center shadow-lg shadow-brand-pink/20 hover:brightness-110 active:scale-95 transition-all"
           >
               {isLoading ? <Loader className="animate-spin" /> : 'Create Account'}

@@ -15,10 +15,9 @@ let sessionPinnedVideos: Video[] = [];
 
 const sanitizeForStorage = (video: Video): Video => {
     const clean = { ...video };
-    // Keep poster (base64) so it still shows in the grid even if url is lost
-    if (clean.url && clean.url.startsWith('blob:')) {
-        delete clean.url; 
-    }
+    // DON'T delete blob URLs - they are needed for persistence
+    // Videos without URLs should only be shown if they have a poster (placeholder state)
+    // Keep all URLs including blob: for proper hydration from Supabase
     return clean;
 };
 

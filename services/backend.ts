@@ -21,33 +21,38 @@ const STARTER_VIBES: Video[] = [
     }
 ];
 
-const mapProfileToUser = (profile: any, userId?: string): User => {
-  if (!profile) return {
-      id: userId || 'unknown', 
-      username: 'user_' + (userId?.slice(0, 4) || 'guest'), 
-      displayName: 'Guest User',
-      avatarUrl: `https://ui-avatars.com/api/?name=User&background=random`, 
-      followers: 0, following: 0, likes: 0, coins: 0
-  };
+const mapProfileToUser = (profile: any, userId?: string): User | null => {
+  if (!profile) {
+    // Return null instead of guest user - users must have real profiles
+    return null;
+  }
 
   // If profile is auth user object
   if (profile.id && profile.email && !profile.username) {
+    const displayName = profile.user_metadata?.full_name || profile.user_metadata?.username || null;
+    // Require real name or username - no auto-generated names
+    if (!displayName) return null;
+    
     return {
       id: profile.id,
       username: profile.user_metadata?.username || profile.email.split('@')[0],
-      displayName: profile.user_metadata?.full_name || profile.user_metadata?.username || 'User',
-      avatarUrl: profile.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${profile.user_metadata?.username || 'User'}&background=random`,
+      displayName: displayName,
+      avatarUrl: profile.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`,
       followers: 0, following: 0, likes: 0, coins: 0,
       email: profile.email
     };
   }
 
-  // Normal profile from db
+  // Normal profile from db - require real full_name
+  if (!profile.full_name || profile.full_name.trim() === '') {
+    return null; // Reject profiles without real names
+  }
+
   return {
-    id: profile.id || userId || 'unknown',
+    id: profile.id || userId || null,
     username: profile.username || profile.email?.split('@')[0] || 'user',
-    displayName: profile.full_name || profile.username || 'User',
-    avatarUrl: profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.username || 'User'}&background=random`,
+    displayName: profile.full_name,
+    avatarUrl: profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.full_name)}&background=random`,
     followers: profile.followers_count || 0,
     following: profile.following_count || 0,
     likes: profile.likes_count || 0,
@@ -70,9 +75,12 @@ export const backend = {
         try {
             const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
             if (error) throw error;
-            return mapProfileToUser(data, userId);
+            const user = mapProfileToUser(data, userId);
+            if (!user) throw new Error('Profile incomplete - real name required');
+            return user;
         } catch (e) { 
-            return mapProfileToUser(null, userId); 
+            console.error('Failed to load user profile:', e);
+            return null; 
         }
     },
     async refreshSession(): Promise<{ user: User, access_token: string } | null> {
@@ -96,18 +104,47 @@ export const backend = {
           password: password
       });
       if (error) throw error;
+      
       const user = mapProfileToUser(data.user, data.user!.id);
+      if (!user) {
+          throw new Error('Account profile incomplete - real name required');
+      }
+      
       this.setUser(user);
       return user;
     },
     async signup(userData: any, password: string): Promise<User> {
+        // Require full name for signup
+        if (!userData.fullName || userData.fullName.trim() === '') {
+            throw new Error('Full name is required');
+        }
+        if (!userData.username || userData.username.trim() === '') {
+            throw new Error('Username is required');
+        }
+        
         const { data, error } = await supabase.auth.signUp({
             email: userData.email,
             password: password,
-            options: { data: { username: userData.username } }
+            options: { 
+                data: { 
+                    username: userData.username,
+                    full_name: userData.fullName
+                } 
+            }
         });
         if (error) throw error;
-        const user = mapProfileToUser({ id: data.user?.id, ...userData });
+        
+        const user = mapProfileToUser({ 
+            id: data.user?.id, 
+            ...userData,
+            full_name: userData.fullName,
+            user_metadata: {
+                username: userData.username,
+                full_name: userData.fullName
+            }
+        });
+        
+        if (!user) throw new Error('Profile creation failed - real name is required');
         this.setUser(user);
         return user;
     },
@@ -181,6 +218,14 @@ export const backend = {
                     url = await this.getSignedUrl(path);
                 }
                 const durationVal = v.duration ? parseFloat(v.duration) : 15;
+                const userProfile = mapProfileToUser(profileMap.get(v.user_id), v.user_id);
+                
+                // Skip videos with missing user profile data
+                if (!userProfile) {
+                    console.warn(`[Backend] Skipping video ${v.id} - no user profile`);
+                    return null;
+                }
+                
                 return {
                     id: v.id.toString(),
                     url: url, 
@@ -190,14 +235,14 @@ export const backend = {
                     likes: v.likes_count || 0,
                     comments: v.comments_count || 0,
                     shares: v.shares_count || 0,
-                    user: mapProfileToUser(profileMap.get(v.user_id), v.user_id),
+                    user: userProfile,
                     musicTrack: v.music_track || 'Original Sound',
                     category: v.category || 'general',
                     location: v.location_name,
                     duration: isNaN(durationVal) || durationVal <= 0 ? 60 : durationVal,
                     isLocal: false
                 };
-            }));
+            })).then(videos => videos.filter(v => v !== null));
         } catch (e: any) { 
             console.error("[Backend] Supabase fetch error:", e?.message || e);
             throw e; 
@@ -208,15 +253,20 @@ export const backend = {
             const from = page * pageSize;
             const to = from + pageSize - 1;
             
+            // Fetch all videos from database (not filtered by user)
+            // This ensures all users can see each other's posts
             const liveVideos = await backend.content.fetchVideosSafe((q: any) => 
-                q.order("created_at", { ascending: false }).range(from, to)
+                q.eq('is_published', true)  // Only show published videos
+                 .order("created_at", { ascending: false })
+                 .range(from, to)
             );
             
             if (page === 0) {
+                // Mix with local/temporary videos but prioritize database videos
                 const localDB = getLocalDatabase().filter(v => !!v.url);
-                const localIds = new Set(localDB.map(l => l.id));
-                const filteredLive = liveVideos.filter(lv => !localIds.has(lv.id));
-                const merged = [...localDB, ...filteredLive];
+                const dbIds = new Set(liveVideos.map(v => v.id));
+                const uniqueLocals = localDB.filter(l => !dbIds.has(l.id));
+                const merged = [...liveVideos, ...uniqueLocals];
                 return merged.length === 0 ? STARTER_VIBES : merged;
             }
             return liveVideos;

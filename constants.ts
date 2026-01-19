@@ -1,17 +1,8 @@
 import { Video, User, Product } from './types';
 
-export const CURRENT_USER: User = {
-  id: 'u1',
-  username: 'happy_user',
-  displayName: 'Happy Creator',
-  avatarUrl: 'https://picsum.photos/100/100',
-  followers: 1205,
-  following: 45,
-  likes: 8500,
-  coins: 1500, 
-  bio: 'Sharing the joy of Africa! 🌍✨',
-  isSeller: true
-};
+// Removed guest user - all users must login with real credentials
+// No guest/mock users allowed
+export const CURRENT_USER: User | null = null;
 
 export const MOCK_USERS = [
   { id: 'u2', username: 'travel_king', displayName: 'Travel King', avatarUrl: 'https://picsum.photos/100/100?random=2', followers: 5000, following: 100, likes: 20000, coins: 0 },

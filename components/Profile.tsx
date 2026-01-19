@@ -56,7 +56,7 @@ export const Profile: React.FC<ProfileProps> = ({
     onViewStory,
     onNavigate
 }) => {
-  const postedVideos = videos.filter(v => (v.user.id === user.id || v.isLocal) && !v.isDraft);
+  const postedVideos = videos.filter(v => (v.user?.id === user.id) && !v.isDraft);
   
   const [activeTab, setActiveTab] = useState<'grid' | 'reposts' | 'likes' | 'favorites' | 'shop'>('grid');
   const [favoritesSubTab, setFavoritesSubTab] = useState<'all' | 'collections'>('all');

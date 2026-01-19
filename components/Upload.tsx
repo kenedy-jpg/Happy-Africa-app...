@@ -174,17 +174,29 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
   };
 
   const handlePost = async (isDraft: boolean = false) => {
-     if (!isMetadataReady) return;
+     if (!isMetadataReady || !selectedFile) {
+       console.error('Missing file or metadata');
+       return;
+     }
      setIsUploadingNow(true);
      setMode('processing'); 
      setProcessStep(0);
      
-     for (let i = 0; i < PROCESS_STEPS.length; i++) {
-         setProcessStep(i);
-         await new Promise(r => setTimeout(r, 600));
+     try {
+       for (let i = 0; i < PROCESS_STEPS.length; i++) {
+           setProcessStep(i);
+           await new Promise(r => setTimeout(r, 600));
+       }
+       
+       // Upload to Supabase to ensure persistence
+       await backend.content.uploadVideo(selectedFile, description, generatedThumbnail, extractedDuration);
+       completeUpload(isDraft);
+     } catch (error: any) {
+       console.error('Upload error:', error);
+       alert('Failed to upload video. Please try again.');
+       setIsUploadingNow(false);
+       setMode('details');
      }
-     
-     completeUpload(isDraft);
   };
 
   const completeUpload = (isDraft: boolean) => {
@@ -212,6 +224,7 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
         duration: extractedDuration || 15
       };
       onUpload(newVideo, selectedFile);
+      setIsUploadingNow(false);
   };
 
   return (

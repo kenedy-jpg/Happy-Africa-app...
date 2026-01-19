@@ -46,7 +46,7 @@ export const App: React.FC = () => {
   const [showSplash, setShowSplash] = useState(true);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentUser, setCurrentUser] = useState<User>(CURRENT_USER);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [myVideos, setMyVideos] = useState<Video[]>([]);
   const [feedRefreshTrigger, setFeedRefreshTrigger] = useState(0);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -78,11 +78,18 @@ export const App: React.FC = () => {
       if (['SIGNED_IN', 'TOKEN_REFRESHED'].includes(event)) {
           if (session) {
              setSupabaseToken(session.access_token);
+             const displayName = session.user.user_metadata?.full_name || session.user.user_metadata?.username;
+             // Require real name - reject sessions without full_name
+             if (!displayName) {
+               console.error('[Auth] Session rejected: no real name provided');
+               await supabase.auth.signOut().catch(() => {});
+               return;
+             }
              const user = {
                id: session.user.id,
                username: session.user.user_metadata?.username || session.user.email!.split('@')[0],
-               displayName: session.user.user_metadata?.full_name || session.user.user_metadata?.username || 'User',
-               avatarUrl: session.user.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${session.user.user_metadata?.username || 'User'}&background=random`,
+               displayName: displayName,
+               avatarUrl: session.user.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`,
                followers: 0, following: 0, likes: 0, coins: 0,
                email: session.user.email
              };
@@ -97,7 +104,7 @@ export const App: React.FC = () => {
       
       if (event === 'SIGNED_OUT') {
         setIsLoggedIn(false);
-        setCurrentUser(CURRENT_USER);
+        setCurrentUser(null);
         backend.auth.setUser(null);
       }
     });
