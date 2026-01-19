@@ -407,7 +407,8 @@ export const backend = {
             
             // Still throw the original error so user knows there was an issue
             // but the video is preserved
-            throw new Error(`Database save failed (${insertError.code}): ${insertError.message} - Video saved locally as backup`);
+            const errorDetails = `Database save failed\n\nError Code: ${insertError.code}\nMessage: ${insertError.message}\n\nYour video has been saved locally as a backup and will sync when the connection is restored.\n\nTo fix this issue:\n1. Go to Supabase Dashboard → SQL Editor\n2. Run the SQL script from FIX_RLS_POLICIES.sql\n3. Make sure you're properly logged in`;
+            throw new Error(errorDetails);
           } catch (localSaveError: any) {
             console.error('[Upload] Failed to save locally too:', localSaveError);
             // Delete the uploaded file since we couldn't save it anywhere
@@ -417,7 +418,7 @@ export const backend = {
             } catch (cleanupError) {
               console.warn('[Upload] Failed to cleanup file:', cleanupError);
             }
-            throw new Error(`Failed to save video to database: ${insertError.message}`);
+            throw new Error(`Failed to save video to database: ${insertError.message}\n\nError Code: ${insertError.code}\nStatus: ${(insertError as any).status || 'N/A'}\n\nThis is a server configuration issue. Run FIX_RLS_POLICIES.sql in Supabase to resolve it.`);
           }
         }
 
