@@ -197,8 +197,14 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
        );
        completeUpload(isDraft);
      } catch (error: any) {
-       console.error('Upload error:', error);
-       alert('Failed to upload video. Please try again.');
+       console.error('Upload error details:', {
+         message: error?.message,
+         code: error?.code,
+         status: error?.status,
+         fullError: error
+       });
+       const errorMsg = error?.message || 'Failed to upload video. Please try again.';
+       alert(`Upload Error: ${errorMsg}`);
        setIsUploadingNow(false);
        setMode('details');
      }

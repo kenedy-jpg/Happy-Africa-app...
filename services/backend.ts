@@ -341,25 +341,35 @@ export const backend = {
       const { data: urlData } = supabase.storage.from("videos").getPublicUrl(fileName);
       const publicUrl = urlData.publicUrl;
 
-      const { error: insertError } = await supabase.from("videos").insert({
-        user_id: user.id,
-        file_path: fileName,
-        description: description || '',
-        poster_url: posterBase64 || null,
-        duration: duration || null,
-        is_published: true,
-        likes_count: 0,
-        comments_count: 0,
-        shares_count: 0,
-        created_at: new Date().toISOString()
-      });
+      try {
+        const { error: insertError } = await supabase.from("videos").insert({
+          user_id: user.id,
+          file_path: fileName,
+          video_url: publicUrl,
+          description: description || '',
+          poster_url: posterBase64 || null,
+          duration: duration && duration > 0 ? Math.round(duration) : 0,
+          is_published: true,
+          likes_count: 0,
+          comments_count: 0,
+          shares_count: 0,
+          created_at: new Date().toISOString()
+        });
 
-      if (insertError) {
+        if (insertError) {
+          console.error('[Upload] Database insert error:', insertError);
           await supabase.storage.from("videos").remove([fileName]);
-          throw insertError;
+          throw new Error(`Failed to save video to database: ${insertError.message}`);
+        }
+
+        onProgress?.(100); // Complete
+      } catch (e: any) {
+        console.error('[Upload] Final error:', e);
+        try {
+          await supabase.storage.from("videos").remove([fileName]);
+        } catch {}
+        throw e;
       }
-      
-      onProgress?.(100); // Complete
     },
 
     async compressVideo(file: File): Promise<File> {
