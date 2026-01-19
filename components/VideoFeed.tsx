@@ -4,7 +4,6 @@ import { Video, FeedType, PageRoute } from '../types';
 import { backend } from '../services/backend';
 import { supabase } from '../services/supabaseClient';
 import { ChevronLeft, Loader, Video as VideoIcon, RefreshCw } from 'lucide-react';
-import { BrandLogo } from './BrandLogo';
 
 interface VideoFeedProps {
   onOpenComments: (videoId: string) => void;
@@ -181,11 +180,6 @@ export const VideoFeed: React.FC<VideoFeedProps> = ({
                 </button>
             </div>
         )}
-
-        {/* Brand Logo in Feed */}
-        <div className="absolute top-20 left-4 z-[40] pointer-events-none">
-            <BrandLogo size="sm" showText={false} />
-        </div>
 
         {isRefreshing && (
             <div className="absolute top-20 left-0 w-full flex justify-center z-[100] animate-bounce">

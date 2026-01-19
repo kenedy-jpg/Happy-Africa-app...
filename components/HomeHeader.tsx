@@ -2,6 +2,7 @@
 import React from 'react';
 import { Search, Radio, LogIn, UserPlus } from 'lucide-react';
 import { FeedType } from '../types';
+import { BrandLogo } from './BrandLogo';
 
 interface HomeHeaderProps {
   activeFeed: FeedType;
@@ -52,6 +53,11 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({
         <button onClick={onSearchClick} className="pointer-events-auto w-8 h-8 flex items-center justify-center text-brand-pink active:scale-90 transition-transform">
           <Search size={18} strokeWidth={3} />
         </button>
+      </div>
+
+      {/* Brand Logo below search button */}
+      <div className="absolute top-12 right-3 pointer-events-none z-50">
+        <BrandLogo size="sm" showText={false} />
       </div>
 
       {!isLoggedIn && (
