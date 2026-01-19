@@ -14,28 +14,23 @@ interface State {
 /**
  * ErrorBoundary component to catch rendering errors and provide a fallback UI.
  */
-// Fix: Use React.Component explicitly to ensure inherited properties like state and props are recognized correctly
 export class ErrorBoundary extends React.Component<Props, State> {
-  // Fix: Initialize state property on the class and remove 'override' as it might cause resolution issues in some environments
-  public state: State = {
-    hasError: false
-  };
-
   constructor(props: Props) {
     super(props);
+    this.state = {
+      hasError: false
+    };
   }
 
-  // Fix: Static method for deriving state from error must match return type State
-  public static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
   }
 
-  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("Uncaught error:", error, errorInfo);
   }
 
-  public render(): ReactNode {
-    // Fix: 'state' is properly inherited from React.Component
+  render(): ReactNode {
     if (this.state.hasError) {
       return (
         <div className="fixed inset-0 z-[200] bg-brand-indigo flex flex-col items-center justify-center p-8 text-center">
