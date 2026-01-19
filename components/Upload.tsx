@@ -160,7 +160,95 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
       };
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  /**
+   * Trim video to maximum 3 minutes (180 seconds)
+   * Returns trimmed video file or original if already under 3 minutes
+   */
+  const trimVideoTo3Minutes = async (file: File, duration: number): Promise<File> => {
+    const MAX_DURATION = 180; // 3 minutes in seconds
+    
+    if (duration <= MAX_DURATION) {
+      console.log('[Upload] Video is within 3 min limit:', duration);
+      return file;
+    }
+
+    console.log('[Upload] Trimming video from', duration, 'to', MAX_DURATION, 'seconds');
+
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video');
+      video.src = URL.createObjectURL(file);
+      video.playsInline = true;
+      video.muted = true;
+
+      video.onloadedmetadata = async () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = video.videoWidth || 720;
+          canvas.height = video.videoHeight || 1280;
+          const ctx = canvas.getContext('2d');
+
+          if (!ctx) {
+            console.warn('[Upload] Canvas not supported, using original file');
+            resolve(file);
+            return;
+          }
+
+          // Create MediaRecorder to capture trimmed video
+          const stream = canvas.captureStream(30);
+          const mediaRecorder = new MediaRecorder(stream, {
+            mimeType: 'video/webm;codecs=vp9',
+            videoBitsPerSecond: 2500000
+          });
+
+          const chunks: Blob[] = [];
+          mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+          mediaRecorder.onstop = () => {
+            const trimmedBlob = new Blob(chunks, { type: 'video/webm' });
+            const trimmedFile = new File([trimmedBlob], file.name.replace(/\.\w+$/, '_trimmed.webm'), {
+              type: 'video/webm'
+            });
+            console.log('[Upload] Video trimmed successfully:', trimmedFile.size);
+            resolve(trimmedFile);
+          };
+
+          mediaRecorder.onerror = (e) => {
+            console.error('[Upload] MediaRecorder error:', e);
+            resolve(file); // Fallback to original
+          };
+
+          // Start recording
+          mediaRecorder.start();
+          video.currentTime = 0;
+          video.play();
+
+          // Render frames for 3 minutes
+          const startTime = Date.now();
+          const render = () => {
+            if (video.currentTime >= MAX_DURATION || (Date.now() - startTime) > MAX_DURATION * 1000) {
+              video.pause();
+              mediaRecorder.stop();
+              URL.revokeObjectURL(video.src);
+              return;
+            }
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            requestAnimationFrame(render);
+          };
+          render();
+
+        } catch (err) {
+          console.error('[Upload] Trim error:', err);
+          resolve(file); // Fallback to original
+        }
+      };
+
+      video.onerror = () => {
+        console.warn('[Upload] Video load error, using original');
+        resolve(file);
+      };
+    });
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files: File[] = Array.from(e.target.files);
       const file = files[0];
@@ -170,13 +258,52 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
          // Handle video uploads (including mobile formats)
          console.log('[Upload] Video file selected:', file.name, file.type, file.size);
          const url = URL.createObjectURL(file);
-         setSelectedFile(file); 
-         setFileUrl(url); 
-         setClips([]); 
-         setMediaType('video');
-         extractMetadata(url);
-         generateThumbnail(url); 
-         setMode('edit');
+         
+         // Extract duration first to check if trimming is needed
+         const tempVideo = document.createElement('video');
+         tempVideo.src = url;
+         tempVideo.playsInline = true;
+         tempVideo.muted = true;
+         
+         tempVideo.onloadedmetadata = async () => {
+           const videoDuration = tempVideo.duration;
+           console.log('[Upload] Original video duration:', videoDuration);
+           
+           // Trim if longer than 3 minutes
+           let finalFile = file;
+           let finalUrl = url;
+           
+           if (videoDuration > 180) {
+             alert('Video is longer than 3 minutes. It will be automatically trimmed to 3 minutes.');
+             try {
+               finalFile = await trimVideoTo3Minutes(file, videoDuration);
+               finalUrl = URL.createObjectURL(finalFile);
+               console.log('[Upload] Using trimmed video');
+             } catch (err) {
+               console.error('[Upload] Trimming failed, using original:', err);
+             }
+           }
+           
+           setSelectedFile(finalFile); 
+           setFileUrl(finalUrl); 
+           setClips([]); 
+           setMediaType('video');
+           extractMetadata(finalUrl);
+           generateThumbnail(finalUrl); 
+           setMode('edit');
+         };
+         
+         tempVideo.onerror = () => {
+           // Fallback if duration can't be extracted
+           console.warn('[Upload] Could not check duration, proceeding with upload');
+           setSelectedFile(file); 
+           setFileUrl(url); 
+           setClips([]); 
+           setMediaType('video');
+           extractMetadata(url);
+           generateThumbnail(url); 
+           setMode('edit');
+         };
       } else {
          // Handle image uploads for slideshows
          setImages(files.map(f => URL.createObjectURL(f))); 
