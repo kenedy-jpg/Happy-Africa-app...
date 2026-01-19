@@ -58,9 +58,9 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
   const [isMetadataReady, setIsMetadataReady] = useState(false);
 
   const PROCESS_STEPS = [
-    "Optimizing Vibe...",
-    "AI Enhancement...",
-    "Going Worldwide..."
+    "Compressing Video...",
+    "Uploading to Server...",
+    "Finalizing Post..."
   ];
 
   useEffect(() => {
@@ -183,13 +183,18 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
      setProcessStep(0);
      
      try {
-       for (let i = 0; i < PROCESS_STEPS.length; i++) {
-           setProcessStep(i);
-           await new Promise(r => setTimeout(r, 600));
-       }
-       
-       // Upload to Supabase to ensure persistence
-       await backend.content.uploadVideo(selectedFile, description, generatedThumbnail, extractedDuration);
+       // Upload to Supabase to ensure persistence with progress tracking
+       await backend.content.uploadVideo(
+         selectedFile, 
+         description, 
+         generatedThumbnail, 
+         extractedDuration,
+         (progress) => {
+           // Track real upload progress (0-100)
+           const progressStep = Math.floor((progress / 100) * PROCESS_STEPS.length);
+           setProcessStep(Math.min(progressStep, PROCESS_STEPS.length - 1));
+         }
+       );
        completeUpload(isDraft);
      } catch (error: any) {
        console.error('Upload error:', error);
@@ -287,16 +292,25 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
         )}
         {mode === 'processing' && (
             <div className="flex-1 flex flex-col items-center justify-center bg-brand-indigo p-10 text-center">
-                <div className="flex flex-col items-center gap-8">
+                <div className="flex flex-col items-center gap-8 w-full max-w-sm">
                     <div className="relative">
                         <div className="w-24 h-24 border-[6px] border-brand-pink border-t-transparent rounded-full animate-spin"></div>
                         <div className="absolute inset-0 flex items-center justify-center">
                             <UploadIcon size={24} className="text-brand-pink animate-bounce" />
                         </div>
                     </div>
-                    <div className="space-y-1">
-                        <h2 className="text-xl font-black text-white uppercase tracking-widest">{PROCESS_STEPS[processStep]}</h2>
-                        <p className="text-brand-gold text-[10px] font-black uppercase tracking-[0.2em]">Syncing to Happy Africa</p>
+                    <div className="space-y-4 w-full">
+                        <div className="space-y-1">
+                            <h2 className="text-xl font-black text-white uppercase tracking-widest">{PROCESS_STEPS[processStep]}</h2>
+                            <p className="text-brand-gold text-[10px] font-black uppercase tracking-[0.2em]">Syncing to Happy Africa</p>
+                        </div>
+                        <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
+                            <div 
+                                className="h-full bg-gradient-to-r from-brand-pink to-brand-gold rounded-full transition-all duration-300"
+                                style={{ width: `${Math.min((processStep + 1) * 33, 95)}%` }}
+                            />
+                        </div>
+                        <p className="text-xs text-gray-400 text-center">{Math.min((processStep + 1) * 33, 95)}%</p>
                     </div>
                 </div>
             </div>

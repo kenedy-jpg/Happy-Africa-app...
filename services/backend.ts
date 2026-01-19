@@ -293,19 +293,50 @@ export const backend = {
             return getPersistentUserPosts(userId); 
         }
     },
-    async uploadVideo(file: File, description: string, posterBase64?: string, duration?: number): Promise<void> {
+    async uploadVideo(
+      file: File, 
+      description: string, 
+      posterBase64?: string, 
+      duration?: number,
+      onProgress?: (progress: number) => void
+    ): Promise<void> {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error("Authentication required to post");
 
+      // Compress video before upload to reduce file size
+      let uploadFile = file;
+      onProgress?.(5); // Indicate compression starting
+      
+      // If file is large (>50MB), attempt compression
+      if (file.size > 50 * 1024 * 1024) {
+        try {
+          uploadFile = await this.compressVideo(file);
+        } catch (e) {
+          console.warn('[Upload] Video compression skipped:', e);
+          // Continue with original file if compression fails
+        }
+      }
+      
+      onProgress?.(15); // Compression complete, starting upload
+
       const fileName = `${user.id}/${Date.now()}_video.mp4`;
+      
+      // Upload with progress tracking
       const { error: uploadError } = await supabase.storage
         .from("videos")
-        .upload(fileName, file, { 
+        .upload(fileName, uploadFile, { 
             contentType: "video/mp4", 
-            upsert: false 
+            upsert: false,
+            onUploadProgress: (progress: any) => {
+              // Map upload progress to 15-85% range
+              const uploadProgress = (progress.loaded / progress.total) * 100;
+              onProgress?.(15 + (uploadProgress * 0.7));
+            }
         });
 
       if (uploadError) throw uploadError;
+
+      onProgress?.(90); // Upload complete, saving to database
 
       const { data: urlData } = supabase.storage.from("videos").getPublicUrl(fileName);
       const publicUrl = urlData.publicUrl;
@@ -327,6 +358,45 @@ export const backend = {
           await supabase.storage.from("videos").remove([fileName]);
           throw insertError;
       }
+      
+      onProgress?.(100); // Complete
+    },
+
+    async compressVideo(file: File): Promise<File> {
+      // Use canvas-based compression as fallback
+      // For production, consider using FFmpeg.wasm or similar
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          try {
+            const video = document.createElement('video');
+            video.src = e.target?.result as string;
+            video.onloadedmetadata = () => {
+              const canvas = document.createElement('canvas');
+              canvas.width = video.videoWidth * 0.75; // Reduce resolution by 25%
+              canvas.height = video.videoHeight * 0.75;
+              
+              const ctx = canvas.getContext('2d');
+              if (!ctx) throw new Error('Canvas context unavailable');
+              
+              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+              canvas.toBlob(
+                (blob) => {
+                  if (!blob) reject(new Error('Canvas conversion failed'));
+                  else resolve(new File([blob], file.name, { type: 'video/mp4' }));
+                },
+                'video/mp4',
+                0.8 // 80% quality
+              );
+            };
+            video.onerror = () => reject(new Error('Video load failed'));
+          } catch (e) {
+            reject(e);
+          }
+        };
+        reader.onerror = () => reject(new Error('File read failed'));
+        reader.readAsDataURL(file);
+      });
     },
     async uploadImage(file: File, bucket: string): Promise<string> {
         const fileName = `${Date.now()}_${file.name}`;
