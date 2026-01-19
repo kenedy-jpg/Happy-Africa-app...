@@ -6,6 +6,7 @@ import { CameraCapture } from './CameraCapture';
 import { LiveHost } from './LiveHost';
 import { VideoEditor } from './VideoEditor';
 import { VideoTrimmer } from './VideoTrimmer';
+import { ErrorModal } from './ErrorModal';
 import { backend } from '../services/backend';
 import { uploadDiagnostics } from '../services/uploadDiagnostics';
 
@@ -58,6 +59,7 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
   const [isUploadingNow, setIsUploadingNow] = useState(false);
   const [extractedDuration, setExtractedDuration] = useState<number>(0);
   const [isMetadataReady, setIsMetadataReady] = useState(false);
+  const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
 
   const PROCESS_STEPS = [
     "Compressing Video...",
@@ -272,7 +274,7 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
      
      if (!selectedFile) {
        console.error('[Upload] No file selected');
-       alert('Please select a video first');
+       setErrorModal({ title: 'No Video Selected', message: 'Please select a video first before posting.' });
        return;
      }
      
@@ -315,7 +317,10 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
 
        if (isFallbackSave) {
          // Video was saved as fallback - tell user it's been saved
-         alert('✅ Video uploaded and saved!\n\nNote: There was a temporary database issue, but your video has been saved and will sync when connection is restored.');
+         setErrorModal({ 
+           title: '✅ Video Saved Successfully', 
+           message: 'Video uploaded and saved!\n\nNote: There was a temporary database issue, but your video has been saved and will sync when connection is restored.' 
+         });
          completeUpload(isDraft);
          return;
        }
@@ -327,7 +332,8 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
 
        // Show more specific error message to user
        const errorMsg = userMessage || error?.message || 'Failed to upload video. Please try again.';
-       alert(`Upload Error: ${errorMsg}\n\nIf this persists, try logging out and back in.`);
+       const fullErrorDetails = `${errorMsg}\n\nError Details:\nCode: ${error?.code || 'N/A'}\nStatus: ${error?.status || 'N/A'}\n\nIf this persists, try logging out and back in.`;
+       setErrorModal({ title: 'Upload Error', message: fullErrorDetails });
 
        setIsUploadingNow(false);
        setMode('details');
@@ -447,6 +453,15 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
             </div>
         )}
         {mode === 'live' && <LiveHost currentUser={currentUser} onEnd={onCancel} />}
+        
+        {/* Error Modal */}
+        {errorModal && (
+          <ErrorModal
+            title={errorModal.title}
+            message={errorModal.message}
+            onClose={() => setErrorModal(null)}
+          />
+        )}
     </div>
   );
 };
