@@ -230,7 +230,7 @@ export const App: React.FC = () => {
         setMyVideos(prev => [{ ...newVideo, isLocal: true }, ...prev]);
         setActiveTab('profile');
 
-        if (file) {
+        if (file && currentUser) {
             await backend.content.uploadVideo(file, newVideo.description, newVideo.poster, newVideo.duration);
             await syncUserState(currentUser.id);
         }
@@ -273,8 +273,8 @@ export const App: React.FC = () => {
               case 'user-profile': return <UserProfile user={page.user} onBack={popPage} onVideoClick={(v, i, all) => pushPage({name: 'video-detail', videos: all, initialIndex: i})} isFollowed={followedUserIds.has(page.user.id)} onToggleFollow={handleToggleFollow} onRequireAuth={handleRequireAuth} onNavigate={pushPage} />;
               case 'sound': return <SoundDetail id={page.id} title={page.title} artist={page.subtitle} cover={page.cover} audioUrl={page.audioUrl} allVideos={MOCK_VIDEOS} onBack={popPage} onVideoClick={(v, i, all) => pushPage({name: 'video-detail', videos: all, initialIndex: i})} onUseSound={(t) => { setCreationContext({type: 'sound', track: t}); setActiveTab('upload'); popPage(); }} />;
               case 'hashtag': return <HashtagDetail id={page.id} allVideos={MOCK_VIDEOS} onBack={popPage} onVideoClick={(v, i, all) => pushPage({name: 'video-detail', videos: all, initialIndex: i})} onJoinHashtag={(tag) => { setCreationContext({type: 'hashtag', tag}); setActiveTab('upload'); popPage(); }} />;
-              case 'edit-profile': return <EditProfile user={currentUser} onCancel={popPage} onSave={(u) => { setCurrentUser(u); popPage(); }} />;
-              case 'settings': return <Settings user={currentUser} onBack={popPage} onLogout={handleLogout} isDataSaver={isDataSaver} onToggleDataSaver={() => setIsDataSaver(!isDataSaver)} />;
+              case 'edit-profile': return isLoggedIn && currentUser ? <EditProfile user={currentUser} onCancel={popPage} onSave={(u) => { setCurrentUser(u); popPage(); }} /> : null;
+              case 'settings': return isLoggedIn && currentUser ? <Settings user={currentUser} onBack={popPage} onLogout={handleLogout} isDataSaver={isDataSaver} onToggleDataSaver={() => setIsDataSaver(!isDataSaver)} /> : null;
               case 'qr-code': return <QRCodeCard user={page.user} onClose={popPage} />;
               case 'video-detail': return <VideoFeed type="custom" initialVideos={page.videos} initialIndex={page.initialIndex} onBack={popPage} onOpenComments={(id) => { setSheetData(id); setActiveSheet('comments'); }} onOpenShare={(v) => { setSheetData(v); setActiveSheet('share'); }} onOpenGift={() => setActiveSheet('gift')} onRequireAuth={handleRequireAuth} isLoggedIn={isLoggedIn} likedVideoIds={likedVideoIds} onToggleLike={handleToggleLike} followedUserIds={followedUserIds} onToggleFollow={handleToggleFollow} onNavigate={pushPage} isDataSaver={isDataSaver} onOpenLocation={(l) => { setSheetData(l); setActiveSheet('location'); }} isMuted={isMuted} onToggleMute={() => setIsMuted(!isMuted)} />;
               case 'shop': return <Shop onNavigate={pushPage} onBack={popPage} />;
@@ -306,10 +306,10 @@ export const App: React.FC = () => {
             </div>
           );
           case 'discover': return <Discover onVideoClick={(v) => pushPage({name: 'video-detail', videos: [v], initialIndex: 0})} onNavigate={pushPage} onScanQR={() => setShowQRScanner(true)} />;
-          case 'upload': return <Upload currentUser={currentUser} onUpload={handleUpload} onCancel={() => setActiveTab('home')} creationContext={creationContext} draft={editingDraft} />;
+          case 'upload': return isLoggedIn && currentUser ? <Upload currentUser={currentUser} onUpload={handleUpload} onCancel={() => setActiveTab('home')} creationContext={creationContext} draft={editingDraft} /> : null;
           case 'inbox': return <Inbox notifications={notifications} chatSessions={chatSessions} onOpenChat={(u) => { const session = chatSessions.find(s => s.user.id === u.id) || { id: `new_${u.id}`, user: u, messages: [], lastMessage: '', lastMessageTime: '', unreadCount: 0 }; setActiveChatSessionId(session.id); }} />;
-          case 'profile': return <Profile user={currentUser} videos={myVideos} onOpenWallet={() => setActiveSheet('wallet')} onEditProfile={() => pushPage({name: 'edit-profile'})} onOpenSettings={() => pushPage({name: 'settings'})} onOpenQRCode={() => pushPage({name: 'qr-code', user: currentUser})} onVideoClick={(v, i, all) => pushPage({name: 'video-detail', videos: all, initialIndex: i})} onOpenCreatorTools={() => pushPage({name: 'creator-tools'})} onOpenQA={() => setShowQAModal(true)} onOpenCollection={(c) => pushPage({name: 'collection-detail', collection: c})} onViewStory={() => pushPage({name: 'story-viewer', user: currentUser})} onNavigate={pushPage} />;
-          case 'live': return <LiveFeed currentUser={currentUser} onClose={() => setActiveTab('home')} onRequireAuth={handleRequireAuth} isLoggedIn={isLoggedIn} followedUserIds={followedUserIds} onToggleFollow={handleToggleFollow} />;
+          case 'profile': return isLoggedIn && currentUser ? <Profile user={currentUser} videos={myVideos} onOpenWallet={() => setActiveSheet('wallet')} onEditProfile={() => pushPage({name: 'edit-profile'})} onOpenSettings={() => pushPage({name: 'settings'})} onOpenQRCode={() => pushPage({name: 'qr-code', user: currentUser})} onVideoClick={(v, i, all) => pushPage({name: 'video-detail', videos: all, initialIndex: i})} onOpenCreatorTools={() => pushPage({name: 'creator-tools'})} onOpenQA={() => setShowQAModal(true)} onOpenCollection={(c) => pushPage({name: 'collection-detail', collection: c})} onViewStory={() => pushPage({name: 'story-viewer', user: currentUser})} onNavigate={pushPage} /> : null;
+          case 'live': return isLoggedIn && currentUser ? <LiveFeed currentUser={currentUser} onClose={() => setActiveTab('home')} onRequireAuth={handleRequireAuth} isLoggedIn={isLoggedIn} followedUserIds={followedUserIds} onToggleFollow={handleToggleFollow} /> : null;
           case 'shop': return <Shop onNavigate={pushPage} />;
           default: return null;
       }
@@ -317,7 +317,7 @@ export const App: React.FC = () => {
 
   return (
     <ErrorBoundary>
-        <div className="flex h-full w-full bg-brand-indigo overflow-hidden relative border-l-[8px] border-r-[8px] border-b-[8px] border-brand-pink shadow-[inset_0_0_25px_rgba(255,79,154,0.6)]">
+        <div className="flex h-full w-full bg-brand-indigo overflow-hidden relative">
           {showSplash && <SplashScreen />}
           
           {isOfflineMode && !isAuthLoading && (
@@ -334,10 +334,10 @@ export const App: React.FC = () => {
               {activeTab !== 'upload' && pageStack.length === 0 && !isAuthLoading && (
                   <BottomNav activeTab={activeTab} onTabChange={handleTabChange} isTransparent={activeTab === 'home' || activeTab === 'live'} unreadCount={unreadCount} />
               )}
-              {activeSheet === 'comments' && <CommentsSheet videoId={sheetData} currentUser={currentUser} onClose={() => setActiveSheet('none')} onRequireAuth={handleRequireAuth} isLoggedIn={isLoggedIn} />}
-              {activeSheet === 'share' && <ShareSheet video={sheetData} onClose={() => setActiveSheet('none')} onRepost={() => {}} onDuet={(v) => { setCreationContext({type: 'duet', video: v}); setActiveTab('upload'); setActiveSheet('none'); }} onStitch={(v) => { setCreationContext({type: 'stitch', video: v}); setActiveTab('upload'); setActiveSheet('none'); }} onNotInterested={() => markNotInterested(sheetData)} isOwner={sheetData?.user?.id === currentUser.id} onSendToUser={(u) => { backend.messaging.sendMessage(currentUser.id, u.id, `Shared a video`); setActiveSheet('none'); }} />}
-              {activeSheet === 'gift' && <GiftPicker userCoins={currentUser.coins} onSendGift={(g) => { backend.wallet.purchaseCoins(currentUser.id, -g.price, `Gifted ${g.name}`); setCurrentUser({...currentUser, coins: currentUser.coins - g.price}); setActiveSheet('none'); }} onClose={() => setActiveSheet('none')} onRecharge={() => setActiveSheet('wallet')} />}
-              {activeSheet === 'wallet' && <Wallet currentBalance={currentUser.coins} onClose={() => setActiveSheet('none')} onBuy={(a) => { backend.wallet.purchaseCoins(currentUser.id, a, 'Coin Purchase'); setCurrentUser({...currentUser, coins: currentUser.coins + a}); }} />}
+              {activeSheet === 'comments' && isLoggedIn && currentUser && <CommentsSheet videoId={sheetData} currentUser={currentUser} onClose={() => setActiveSheet('none')} onRequireAuth={handleRequireAuth} isLoggedIn={isLoggedIn} />}
+              {activeSheet === 'share' && isLoggedIn && currentUser && <ShareSheet video={sheetData} onClose={() => setActiveSheet('none')} onRepost={() => {}} onDuet={(v) => { setCreationContext({type: 'duet', video: v}); setActiveTab('upload'); setActiveSheet('none'); }} onStitch={(v) => { setCreationContext({type: 'stitch', video: v}); setActiveTab('upload'); setActiveSheet('none'); }} onNotInterested={() => markNotInterested(sheetData)} isOwner={sheetData?.user?.id === currentUser.id} onSendToUser={(u) => { backend.messaging.sendMessage(currentUser.id, u.id, `Shared a video`); setActiveSheet('none'); }} />}
+              {activeSheet === 'gift' && isLoggedIn && currentUser && <GiftPicker userCoins={currentUser.coins} onSendGift={(g) => { backend.wallet.purchaseCoins(currentUser.id, -g.price, `Gifted ${g.name}`); setCurrentUser({...currentUser, coins: currentUser.coins - g.price}); setActiveSheet('none'); }} onClose={() => setActiveSheet('none')} onRecharge={() => setActiveSheet('wallet')} />}
+              {activeSheet === 'wallet' && isLoggedIn && currentUser && <Wallet currentBalance={currentUser.coins} onClose={() => setActiveSheet('none')} onBuy={(a) => { backend.wallet.purchaseCoins(currentUser.id, a, 'Coin Purchase'); setCurrentUser({...currentUser, coins: currentUser.coins + a}); }} />}
               {activeSheet === 'location' && <LocationExplorer locationName={sheetData} onClose={() => setActiveSheet('none')} />}
               {activeChatSessionId && (
                   <ChatWindow 
