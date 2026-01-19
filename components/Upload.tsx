@@ -21,7 +21,7 @@ type Mode = 'capture' | 'edit' | 'details' | 'processing' | 'live' | 'trim';
 
 const DetailsHeader = ({ title, onBack, onNext, isUploading, isMetadataReady }: any) => (
   <div className="flex justify-between items-center p-4 pt-safe border-b border-white/10 bg-brand-indigo z-[60] shrink-0">
-      <button onClick={onBack} className="p-2 -ml-2 text-white active:opacity-50 flex items-center gap-1">
+      <button onClick={onBack} className="p-2 -ml-2 text-white active:opacity-50 flex items-center gap-1 touch-manipulation">
           <ChevronLeft size={24} />
           <span className="text-xs font-bold uppercase tracking-tight hidden sm:inline">Back</span>
       </button>
@@ -29,7 +29,8 @@ const DetailsHeader = ({ title, onBack, onNext, isUploading, isMetadataReady }: 
       <button 
           onClick={onNext} 
           disabled={isUploading || !isMetadataReady}
-          className="bg-brand-pink text-white px-5 py-2 rounded-full text-xs font-black shadow-lg shadow-brand-pink/20 active:scale-95 transition-transform hover:brightness-110 disabled:opacity-30"
+          className="bg-brand-pink text-white px-6 py-2.5 rounded-full text-xs font-black shadow-lg shadow-brand-pink/20 active:scale-95 transition-transform hover:brightness-110 disabled:opacity-30 touch-manipulation min-w-[80px]"
+          style={{ WebkitTapHighlightColor: 'transparent' }}
       >
           {isUploading ? 'WAIT...' : 'POST'}
       </button>
@@ -214,10 +215,21 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
   };
 
   const handlePost = async (isDraft: boolean = false) => {
-     if (!isMetadataReady || !selectedFile) {
-       console.error('Missing file or metadata');
+     console.log('[Upload] POST clicked', { isMetadataReady, hasFile: !!selectedFile, duration: extractedDuration });
+     
+     if (!selectedFile) {
+       console.error('[Upload] No file selected');
+       alert('Please select a video first');
        return;
      }
+     
+     // Allow posting even if metadata isn't ready yet (with fallback duration)
+     if (!isMetadataReady) {
+       console.warn('[Upload] Metadata not ready, using fallback duration');
+       setExtractedDuration(15); // Use default
+       setIsMetadataReady(true);
+     }
+     
      setIsUploadingNow(true);
      setMode('processing'); 
      setProcessStep(0);
@@ -347,8 +359,9 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
                     </div>
                     <button 
                         onClick={() => handlePost(false)} 
-                        disabled={isUploadingNow || !isMetadataReady}
-                        className="w-full py-4 bg-brand-pink rounded-xl text-white font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 shadow-2xl active:scale-95 transition-all disabled:opacity-30"
+                        disabled={isUploadingNow}
+                        className="w-full py-4 bg-brand-pink rounded-xl text-white font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 shadow-2xl active:scale-95 transition-all disabled:opacity-30 touch-manipulation"
+                        style={{ WebkitTapHighlightColor: 'transparent' }}
                     >
                         {isUploadingNow ? <><Loader className="animate-spin" /> UPLOADING...</> : <><UploadIcon size={20} /> POST NOW</>}
                     </button>
