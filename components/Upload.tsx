@@ -79,24 +79,45 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
   /**
    * ROBUST DURATION EXTRACTION
    * Blocks post button until actual duration is measured.
+   * Enhanced for mobile compatibility.
    */
   const extractMetadata = (url: string) => {
     setIsMetadataReady(false);
     const video = document.createElement('video');
     video.preload = 'metadata';
+    video.playsInline = true; // Mobile Safari compatibility
+    video.muted = true; // Required for autoplay on mobile
     
     video.onloadedmetadata = () => {
         if (video.duration && !isNaN(video.duration) && video.duration !== Infinity) {
             setExtractedDuration(video.duration);
             setIsMetadataReady(true);
         } else {
-            // Fallback for some browsers that struggle with stream duration
-            setExtractedDuration(15);
-            setIsMetadataReady(true);
+            // Fallback for mobile browsers that struggle with duration
+            // Try seeking to end to get duration
+            video.currentTime = Number.MAX_SAFE_INTEGER;
+            video.ontimeupdate = () => {
+                if (video.duration && !isNaN(video.duration) && video.duration !== Infinity) {
+                    setExtractedDuration(video.duration);
+                    setIsMetadataReady(true);
+                    video.ontimeupdate = null;
+                } else {
+                    // Final fallback
+                    setExtractedDuration(15);
+                    setIsMetadataReady(true);
+                }
+            };
+            setTimeout(() => {
+                if (!isMetadataReady) {
+                    setExtractedDuration(15);
+                    setIsMetadataReady(true);
+                }
+            }, 2000);
         }
     };
 
     video.onerror = () => {
+        console.warn('[Upload] Video metadata load failed, using default duration');
         setExtractedDuration(15);
         setIsMetadataReady(true);
     };
@@ -112,27 +133,41 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
       const video = document.createElement('video');
       video.src = videoUrl; 
       video.crossOrigin = 'anonymous'; 
+      video.playsInline = true; // Mobile Safari compatibility
+      video.muted = true;
       video.currentTime = 1; 
       video.onloadeddata = () => {
           setTimeout(() => {
               const canvas = document.createElement('canvas'); 
-              canvas.width = video.videoWidth; 
-              canvas.height = video.videoHeight;
+              canvas.width = video.videoWidth || 720; 
+              canvas.height = video.videoHeight || 1280;
               const ctx = canvas.getContext('2d');
               if (ctx) { 
-                  ctx.drawImage(video, 0, 0, canvas.width, canvas.height); 
-                  setGeneratedThumbnail(canvas.toDataURL('image/jpeg', 0.7)); 
+                  try {
+                      ctx.drawImage(video, 0, 0, canvas.width, canvas.height); 
+                      setGeneratedThumbnail(canvas.toDataURL('image/jpeg', 0.7)); 
+                  } catch (e) {
+                      console.warn('[Upload] Thumbnail generation failed:', e);
+                  }
               }
+              // Clean up
+              video.src = '';
           }, 500);
+      };
+      video.onerror = () => {
+          console.warn('[Upload] Thumbnail video load failed');
       };
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files: File[] = Array.from(e.target.files);
-      const isVideo = files[0].type.startsWith('video');
+      const file = files[0];
+      const isVideo = file.type.startsWith('video') || file.name.match(/\.(mp4|webm|mov|avi|mkv)$/i);
+      
       if (isVideo) {
-         const file = files[0]; 
+         // Handle video uploads (including mobile formats)
+         console.log('[Upload] Video file selected:', file.name, file.type, file.size);
          const url = URL.createObjectURL(file);
          setSelectedFile(file); 
          setFileUrl(url); 
@@ -142,12 +177,16 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
          generateThumbnail(url); 
          setMode('edit');
       } else {
+         // Handle image uploads for slideshows
          setImages(files.map(f => URL.createObjectURL(f))); 
          setMediaType('slideshow'); 
          setMode('edit');
          setExtractedDuration(files.length * 3);
          setIsMetadataReady(true);
       }
+      
+      // Clear input so same file can be selected again
+      e.target.value = '';
     }
   };
 

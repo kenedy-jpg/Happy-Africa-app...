@@ -219,7 +219,8 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose
         type="file" 
         ref={fileInputRef} 
         className="hidden" 
-        accept="video/*,image/*" 
+        accept="video/mp4,video/webm,video/quicktime,video/*,image/*" 
+        capture="environment"
         onChange={onFileSelect} 
       />
 
