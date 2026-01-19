@@ -30,37 +30,37 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({
   ];
 
   return (
-    <div className="absolute top-0 left-0 w-full z-[45] pt-safe px-4 flex flex-col pointer-events-none">
-      <div className="flex items-center justify-between py-2">
-        <button onClick={onLiveClick} className="pointer-events-auto w-10 h-10 flex items-center justify-center text-white active:scale-90 transition-transform">
-          <Radio size={24} />
+    <div className="absolute top-0 left-0 w-full z-[45] pt-safe px-3 flex flex-col pointer-events-none">
+      <div className="flex items-center justify-between py-1">
+        <button onClick={onLiveClick} className="pointer-events-auto w-8 h-8 flex items-center justify-center text-brand-pink active:scale-90 transition-transform">
+          <Radio size={18} />
         </button>
 
-        <div className="flex items-center gap-5 pointer-events-auto">
+        <div className="flex items-center gap-3 pointer-events-auto">
           {tabs.map((tab) => (
-            <button key={tab.id} onClick={() => onFeedChange(tab.id)} className="relative py-4 flex flex-col items-center group">
-              <span className={`text-[15px] font-black transition-all duration-200 drop-shadow-md ${activeFeed === tab.id ? `${tab.colorClass} scale-110` : 'text-white/60 hover:text-white'}`}>
+            <button key={tab.id} onClick={() => onFeedChange(tab.id)} className="relative py-2 flex flex-col items-center group">
+              <span className={`text-[11px] font-black transition-all duration-200 drop-shadow-md ${activeFeed === tab.id ? 'text-brand-pink scale-110' : 'text-white/60 hover:text-white'}`}>
                 {tab.label}
               </span>
               {activeFeed === tab.id && (
-                <div className={`absolute bottom-2 w-7 h-1 rounded-full ${tab.id === 'foryou' || tab.id === 'nearby' ? 'bg-brand-pink' : 'bg-brand-gold'} ${tab.shadowClass} transition-all duration-300`} />
+                <div className="absolute bottom-0 w-5 h-0.5 rounded-full bg-brand-pink shadow-[0_0_8px_rgba(255,79,154,0.8)] transition-all duration-300" />
               )}
             </button>
           ))}
         </div>
 
-        <button onClick={onSearchClick} className="pointer-events-auto w-10 h-10 flex items-center justify-center text-brand-gold active:scale-90 transition-transform">
-          <Search size={24} strokeWidth={3} />
+        <button onClick={onSearchClick} className="pointer-events-auto w-8 h-8 flex items-center justify-center text-brand-pink active:scale-90 transition-transform">
+          <Search size={18} strokeWidth={3} />
         </button>
       </div>
 
       {!isLoggedIn && (
-        <div className="flex justify-center gap-3 py-2 pointer-events-auto">
-           <button onClick={onSignIn} className="bg-brand-pink text-white px-5 py-1.5 rounded-full text-xs font-black flex items-center gap-2 shadow-lg shadow-brand-pink/20 active:scale-95">
-              <LogIn size={14} /> SIGN IN
+        <div className="flex justify-center gap-2 py-1 pointer-events-auto">
+           <button onClick={onSignIn} className="bg-brand-pink text-white px-3 py-1 rounded-full text-[10px] font-black flex items-center gap-1 shadow-lg shadow-brand-pink/20 active:scale-95">
+              <LogIn size={12} /> SIGN IN
            </button>
-           <button onClick={onSignUp} className="bg-brand-pink text-white px-5 py-1.5 rounded-full text-xs font-black flex items-center gap-2 shadow-lg shadow-brand-pink/20 active:scale-95">
-              <UserPlus size={14} /> JOIN NOW
+           <button onClick={onSignUp} className="bg-brand-pink text-white px-3 py-1 rounded-full text-[10px] font-black flex items-center gap-1 shadow-lg shadow-brand-pink/20 active:scale-95">
+              <UserPlus size={12} /> JOIN NOW
            </button>
         </div>
       )}
