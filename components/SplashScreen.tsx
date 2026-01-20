@@ -6,6 +6,16 @@ export const SplashScreen: React.FC = () => {
   return (
     <div className="fixed inset-0 z-[100] bg-brand-indigo flex flex-col items-center justify-center animate-fade-out" style={{ animationDelay: '5.5s', animationFillMode: 'forwards', pointerEvents: 'none' }}>
       
+      {/* Made in Africa tagline */}
+      <div className="text-center mb-4 animate-slide-down">
+          <p className="text-brand-gold font-black text-xs uppercase tracking-[0.25em] drop-shadow-lg">
+              Made in Africa
+          </p>
+          <p className="text-white/90 font-bold text-[10px] uppercase tracking-[0.2em] mt-1">
+              Made for the World
+          </p>
+      </div>
+
       <BrandLogo size="xl" className="mb-10 animate-pulse-slow" />
 
       {/* Message & Progress */}
