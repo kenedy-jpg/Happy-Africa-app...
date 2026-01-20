@@ -116,7 +116,7 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
                     setExtractedDuration(15);
                     setIsMetadataReady(true);
                 }
-            }, 2000);
+            }, 500);
         }
     };
 
@@ -141,7 +141,6 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
       video.muted = true;
       video.currentTime = 1; 
       video.onloadeddata = () => {
-          setTimeout(() => {
               const canvas = document.createElement('canvas'); 
               canvas.width = video.videoWidth || 720; 
               canvas.height = video.videoHeight || 1280;
@@ -156,7 +155,6 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
               }
               // Clean up
               video.src = '';
-          }, 500);
       };
       video.onerror = () => {
           console.warn('[Upload] Thumbnail video load failed');

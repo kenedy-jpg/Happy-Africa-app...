@@ -315,9 +315,9 @@ export const backend = {
       const fileName = `${user.id}/${Date.now()}_video.mp4`;
       const videoId = `v_${user.id}_${Date.now()}`;
       
-      // TikTok-style: Chunked upload with retry (Supabase handles chunking internally)
+      // Quick upload with minimal retry
       let uploadAttempt = 0;
-      const maxRetries = 3;
+      const maxRetries = 1; // Reduced from 3 to 1 for faster uploads
       let uploadError: any = null;
 
       while (uploadAttempt < maxRetries) {
@@ -350,10 +350,9 @@ export const backend = {
               continue;
             }
             
-            // Retry on network errors
+            // Retry on network errors immediately
             if (uploadAttempt < maxRetries) {
-              console.log(`[Upload] Retrying in ${uploadAttempt * 1000}ms...`);
-              await new Promise(resolve => setTimeout(resolve, uploadAttempt * 1000));
+              console.log(`[Upload] Retrying immediately...`);
               continue;
             }
             
