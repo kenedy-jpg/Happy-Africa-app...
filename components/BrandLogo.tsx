@@ -23,14 +23,14 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({ size = 'md', showText = tr
   };
 
   const textSize = {
-    sm: 'text-sm',
-    md: 'text-2xl',
-    lg: 'text-5xl',
-    xl: 'text-7xl'
+    sm: 'text-xs',
+    md: 'text-lg',
+    lg: 'text-3xl',
+    xl: 'text-5xl'
   };
 
   return (
-    <div className={`flex flex-col items-center gap-4 ${className}`}>
+    <div className={`flex flex-col items-center gap-2 ${className}`}>
       {/* The Rounded Gradient Box */}
       <div className={`${containerSizes[size]} bg-gradient-to-b from-[#FF6B00] to-[#FFD700] flex items-center justify-center shadow-lg relative overflow-hidden`}>
         {/* SVG Musical Note with Africa Silhouette */}
@@ -68,9 +68,9 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({ size = 'md', showText = tr
 
       {/* Text Branding */}
       {showText && (
-        <div className="flex flex-col items-center">
+        <div className="flex flex-col items-center mt-1">
           <span className={`${textSize[size]} font-black text-brand-pink tracking-tight leading-none`}>HAPPY</span>
-          <span className={`${textSize[size]} font-black text-brand-gold tracking-tight leading-none -mt-1`}>AFRICA</span>
+          <span className={`${textSize[size]} font-black text-brand-gold tracking-tight leading-none`}>AFRICA</span>
         </div>
       )}
     </div>

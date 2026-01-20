@@ -7,11 +7,11 @@ export const SplashScreen: React.FC = () => {
     <div className="fixed inset-0 z-[100] bg-brand-indigo flex flex-col items-center justify-center animate-fade-out" style={{ animationDelay: '5.5s', animationFillMode: 'forwards', pointerEvents: 'none' }}>
       
       {/* Made in Africa tagline */}
-      <div className="text-center mb-12 animate-slide-down">
-          <p className="text-brand-gold font-black text-base uppercase tracking-[0.25em] drop-shadow-lg">
+      <div className="text-center mb-16 animate-slide-down">
+          <p className="text-brand-gold font-black text-2xl uppercase tracking-[0.25em] drop-shadow-lg">
               Made in Africa
           </p>
-          <p className="text-white/90 font-bold text-sm uppercase tracking-[0.2em] mt-2">
+          <p className="text-white/90 font-bold text-lg uppercase tracking-[0.2em] mt-1">
               Made for the World
           </p>
       </div>
