@@ -80,10 +80,8 @@ export async function validateVideo(file: File): Promise<VideoValidationResult> 
       };
     }
 
-    // Check if compression is needed
-    const needsCompression = file.size > VIDEO_CONSTRAINTS.RECOMMENDED_FILE_SIZE || 
-                            metadata.width > VIDEO_CONSTRAINTS.MAX_RESOLUTION ||
-                            metadata.height > VIDEO_CONSTRAINTS.MAX_RESOLUTION;
+    // Upload original file without compression
+    const needsCompression = false;
 
     return {
       isValid: true,

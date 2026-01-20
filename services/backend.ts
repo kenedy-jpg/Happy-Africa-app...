@@ -307,21 +307,10 @@ export const backend = {
       console.log('[Upload] Starting upload - File size:', (file.size / (1024 * 1024)).toFixed(2), 'MB');
       onProgress?.(5);
 
-      // Compress video before upload to reduce file size
-      let uploadFile = file;
+      // Upload original file without compression
+      const uploadFile = file;
       
-      // If file is large (>50MB), attempt compression
-      if (file.size > 50 * 1024 * 1024) {
-        console.log('[Upload] Large file detected, compression recommended');
-        try {
-          uploadFile = await this.compressVideo(file);
-        } catch (e) {
-          console.warn('[Upload] Video compression skipped:', e);
-          // Continue with original file if compression fails
-        }
-      }
-      
-      onProgress?.(15); // Compression complete, starting upload
+      onProgress?.(15); // Starting upload
 
       const fileName = `${user.id}/${Date.now()}_video.mp4`;
       const videoId = `v_${user.id}_${Date.now()}`;
