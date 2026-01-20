@@ -303,78 +303,44 @@ export const backend = {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error("Authentication required to post");
 
-      // TikTok-style: Validate file first
+      // Start upload immediately
       console.log('[Upload] Starting upload - File size:', (file.size / (1024 * 1024)).toFixed(2), 'MB');
-      onProgress?.(5);
-
-      // Upload original file without compression
-      const uploadFile = file;
-      
-      onProgress?.(15); // Starting upload
 
       const fileName = `${user.id}/${Date.now()}_video.mp4`;
       const videoId = `v_${user.id}_${Date.now()}`;
       
-      // Quick upload with minimal retry
-      let uploadAttempt = 0;
-      const maxRetries = 1; // Reduced from 3 to 1 for faster uploads
-      let uploadError: any = null;
-
-      while (uploadAttempt < maxRetries) {
-        try {
-          uploadAttempt++;
-          console.log(`[Upload] Upload attempt ${uploadAttempt}/${maxRetries}`);
-
-          const { error } = await supabase.storage
-            .from("videos")
-            .upload(fileName, uploadFile, { 
-                contentType: file.type || "video/mp4", 
-                upsert: false,
-                onUploadProgress: (progress: any) => {
-                  // Map upload progress to 15-85% range
-                  if (progress.loaded && progress.total) {
-                    const uploadProgress = (progress.loaded / progress.total) * 100;
-                    onProgress?.(15 + (uploadProgress * 0.7));
-                  }
-                }
-            });
-
-          if (error) {
-            uploadError = error;
-            console.error(`[Upload] Storage error (attempt ${uploadAttempt}):`, error);
+      // Use new robust upload service with presigned URLs and retry logic
+      const { uploadVideo: robustUpload } = await import('./uploadService');
+      
+      try {
+        // IMPORTANT: Parameter order is (file, fileName, options)
+        await robustUpload(file, fileName, {
+          maxRetries: 3,
+          retryDelay: 1000,
+          onProgress: (uploadProgress) => {
+            // Convert detailed progress to simple percentage (20-85%)
+            const percent = 20 + (uploadProgress.progress * 0.65);
+            onProgress?.(Math.round(percent));
             
-            // If file already exists, delete and retry
-            if (error.message.includes('already exists')) {
-              console.log('[Upload] File exists, removing and retrying...');
-              await supabase.storage.from("videos").remove([fileName]);
-              continue;
+            // Log detailed progress
+            if (uploadProgress.progress % 10 < 1) { // Log every ~10%
+              console.log('[Upload] Progress:', {
+                percent: uploadProgress.progress.toFixed(1) + '%',
+                loaded: (uploadProgress.loaded / (1024 * 1024)).toFixed(2) + ' MB',
+                total: (uploadProgress.total / (1024 * 1024)).toFixed(2) + ' MB',
+                speed: (uploadProgress.speed / 1024).toFixed(1) + ' KB/s'
+              });
             }
-            
-            // Retry on network errors immediately
-            if (uploadAttempt < maxRetries) {
-              console.log(`[Upload] Retrying immediately...`);
-              continue;
-            }
-            
-            throw error;
           }
-
-          // Success - break out of retry loop
-          uploadError = null;
-          break;
-        } catch (error: any) {
-          uploadError = error;
-          if (uploadAttempt >= maxRetries) {
-            throw new Error(`Failed to upload video after ${maxRetries} attempts: ${error.message}`);
-          }
-        }
+        });
+        
+        onProgress?.(90); // Upload complete, saving to database
+        console.log('[Upload] File uploaded successfully to storage');
+        
+      } catch (uploadError: any) {
+        console.error('[Upload] Upload failed:', uploadError);
+        throw new Error(`Failed to upload video: ${uploadError.message}`);
       }
-
-      if (uploadError) {
-        throw new Error(`Failed to upload video to storage: ${uploadError.message}`);
-      }
-
-      onProgress?.(90); // Upload complete, saving to database
 
       const { data: urlData } = supabase.storage.from("videos").getPublicUrl(fileName);
       const publicUrl = urlData.publicUrl;

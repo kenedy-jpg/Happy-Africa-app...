@@ -61,6 +61,8 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
   const [extractedDuration, setExtractedDuration] = useState<number>(0);
   const [isMetadataReady, setIsMetadataReady] = useState(false);
   const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
+  const [uploadSpeed, setUploadSpeed] = useState<string>('');
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
 
   const PROCESS_STEPS = [
     "Preparing Video...",
@@ -307,6 +309,7 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
          extractedDuration,
          (progress) => {
            // Track real upload progress (0-100)
+           setUploadProgress(progress);
            const progressStep = Math.floor((progress / 100) * PROCESS_STEPS.length);
            setProcessStep(Math.min(progressStep, PROCESS_STEPS.length - 1));
          }
@@ -471,14 +474,17 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
                         <div className="space-y-1">
                             <h2 className="text-xl font-black text-white uppercase tracking-widest">{PROCESS_STEPS[processStep]}</h2>
                             <p className="text-brand-gold text-[10px] font-black uppercase tracking-[0.2em]">Syncing to Happy Africa</p>
+                            {uploadSpeed && (
+                                <p className="text-white/60 text-xs mt-2">{uploadSpeed}</p>
+                            )}
                         </div>
                         <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
                             <div 
                                 className="h-full bg-gradient-to-r from-brand-pink to-brand-gold rounded-full transition-all duration-300"
-                                style={{ width: `${Math.min((processStep + 1) * 33, 95)}%` }}
+                                style={{ width: `${Math.min(uploadProgress || (processStep + 1) * 33, 95)}%` }}
                             />
                         </div>
-                        <p className="text-xs text-gray-400 text-center">{Math.min((processStep + 1) * 33, 95)}%</p>
+                        <p className="text-xs text-gray-400 text-center">{Math.min(uploadProgress || (processStep + 1) * 33, 95)}%</p>
                     </div>
                 </div>
             </div>
