@@ -303,12 +303,16 @@ export const backend = {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error("Authentication required to post");
 
+      // TikTok-style: Validate file first
+      console.log('[Upload] Starting upload - File size:', (file.size / (1024 * 1024)).toFixed(2), 'MB');
+      onProgress?.(5);
+
       // Compress video before upload to reduce file size
       let uploadFile = file;
-      onProgress?.(5); // Indicate compression starting
       
       // If file is large (>50MB), attempt compression
       if (file.size > 50 * 1024 * 1024) {
+        console.log('[Upload] Large file detected, compression recommended');
         try {
           uploadFile = await this.compressVideo(file);
         } catch (e) {
@@ -322,21 +326,63 @@ export const backend = {
       const fileName = `${user.id}/${Date.now()}_video.mp4`;
       const videoId = `v_${user.id}_${Date.now()}`;
       
-      // Upload with progress tracking
-      const { error: uploadError } = await supabase.storage
-        .from("videos")
-        .upload(fileName, uploadFile, { 
-            contentType: "video/mp4", 
-            upsert: false,
-            onUploadProgress: (progress: any) => {
-              // Map upload progress to 15-85% range
-              const uploadProgress = (progress.loaded / progress.total) * 100;
-              onProgress?.(15 + (uploadProgress * 0.7));
+      // TikTok-style: Chunked upload with retry (Supabase handles chunking internally)
+      let uploadAttempt = 0;
+      const maxRetries = 3;
+      let uploadError: any = null;
+
+      while (uploadAttempt < maxRetries) {
+        try {
+          uploadAttempt++;
+          console.log(`[Upload] Upload attempt ${uploadAttempt}/${maxRetries}`);
+
+          const { error } = await supabase.storage
+            .from("videos")
+            .upload(fileName, uploadFile, { 
+                contentType: file.type || "video/mp4", 
+                upsert: false,
+                onUploadProgress: (progress: any) => {
+                  // Map upload progress to 15-85% range
+                  if (progress.loaded && progress.total) {
+                    const uploadProgress = (progress.loaded / progress.total) * 100;
+                    onProgress?.(15 + (uploadProgress * 0.7));
+                  }
+                }
+            });
+
+          if (error) {
+            uploadError = error;
+            console.error(`[Upload] Storage error (attempt ${uploadAttempt}):`, error);
+            
+            // If file already exists, delete and retry
+            if (error.message.includes('already exists')) {
+              console.log('[Upload] File exists, removing and retrying...');
+              await supabase.storage.from("videos").remove([fileName]);
+              continue;
             }
-        });
+            
+            // Retry on network errors
+            if (uploadAttempt < maxRetries) {
+              console.log(`[Upload] Retrying in ${uploadAttempt * 1000}ms...`);
+              await new Promise(resolve => setTimeout(resolve, uploadAttempt * 1000));
+              continue;
+            }
+            
+            throw error;
+          }
+
+          // Success - break out of retry loop
+          uploadError = null;
+          break;
+        } catch (error: any) {
+          uploadError = error;
+          if (uploadAttempt >= maxRetries) {
+            throw new Error(`Failed to upload video after ${maxRetries} attempts: ${error.message}`);
+          }
+        }
+      }
 
       if (uploadError) {
-        console.error('[Upload] Storage error:', uploadError);
         throw new Error(`Failed to upload video to storage: ${uploadError.message}`);
       }
 

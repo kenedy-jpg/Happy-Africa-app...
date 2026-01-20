@@ -9,6 +9,7 @@ import { VideoTrimmer } from './VideoTrimmer';
 import { ErrorModal } from './ErrorModal';
 import { backend } from '../services/backend';
 import { uploadDiagnostics } from '../services/uploadDiagnostics';
+import { validateVideo, VIDEO_CONSTRAINTS, formatFileSize, formatDuration } from '../services/videoUploadHelper';
 
 interface UploadProps {
   currentUser: User;
@@ -327,14 +328,36 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
 
        // Run diagnostics to determine root cause for other errors
        console.log('[Upload] Running diagnostic tests...');
-       const diagnostic = await uploadDiagnostics.runFullDiagnostic();
-       const userMessage = uploadDiagnostics.getUserMessage(diagnostic);
+       let diagnostic;
+       try {
+         diagnostic = await uploadDiagnostics.runFullDiagnostic();
+       } catch (diagError) {
+         console.error('[Upload] Diagnostics failed:', diagError);
+       }
 
-       // Show more specific error message to user
-       const errorMsg = userMessage || error?.message || 'Failed to upload video. Please try again.';
-       const fullErrorDetails = `${errorMsg}\n\nError Details:\nCode: ${error?.code || 'N/A'}\nStatus: ${error?.status || 'N/A'}\n\nIf this persists, try logging out and back in.`;
-       setErrorModal({ title: 'Upload Error', message: fullErrorDetails });
+       // Provide clear, actionable error messages
+       let errorTitle = 'Upload Error';
+       let errorMessage = '';
 
+       // Check for common issues
+       if (!error?.code && !error?.status) {
+         // Network/connection issue
+         errorTitle = 'Connection Error';
+         errorMessage = `Unable to connect to the server. This could be because:\n\n1. Your internet connection is down\n2. Supabase configuration is missing or incorrect\n3. The Supabase project is offline\n\n📋 Quick Fix:\n• Check .env file has correct VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY\n• Restart your development server (npm run dev)\n• Verify you're logged in\n\nSee UPLOAD_FIX_GUIDE.md for detailed instructions.`;
+       } else if (diagnostic && !diagnostic.isAuthenticated) {
+         errorTitle = 'Authentication Required';
+         errorMessage = 'Please log out and log back in, then try uploading again.';
+       } else if (diagnostic && !diagnostic.canInsertVideos) {
+         errorTitle = 'Database Permission Error';
+         errorMessage = `Your video cannot be saved due to database permissions.\n\n📋 To fix this:\n1. Go to your Supabase dashboard\n2. Open SQL Editor\n3. Run the script from FIX_RLS_POLICIES.sql\n\nError Details:\nCode: ${error?.code || 'N/A'}\nStatus: ${error?.status || 'N/A'}`;
+       } else {
+         // Generic error with diagnostic info
+         const userMessage = diagnostic ? uploadDiagnostics.getUserMessage(diagnostic) : null;
+         errorMessage = userMessage || error?.message || 'Failed to upload video. Please try again.';
+         errorMessage += `\n\nError Details:\nCode: ${error?.code || 'N/A'}\nStatus: ${error?.status || 'N/A'}\n\nIf this persists, check UPLOAD_FIX_GUIDE.md`;
+       }
+
+       setErrorModal({ title: errorTitle, message: errorMessage });
        setIsUploadingNow(false);
        setMode('details');
      }

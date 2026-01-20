@@ -18,6 +18,15 @@ const getEnvVar = (key: string): string | undefined => {
 const SUPABASE_URL = getEnvVar('VITE_SUPABASE_URL') || 'https://mlgxgylvndtvyqrdfvlw.supabase.co';
 const SUPABASE_ANON_KEY = getEnvVar('VITE_SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1sZ3hneWx2bmR0dnlxcmRmdmx3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2MjYyMjYsImV4cCI6MjA4MTIwMjIyNn0.nc5Uv2Bf9UgfqWc2Ph8LQwqTY09c9IY6WQqtKBXpVr0';
 
+// Warn if using fallback values
+if (!getEnvVar('VITE_SUPABASE_URL') || !getEnvVar('VITE_SUPABASE_ANON_KEY')) {
+    console.warn(
+        '⚠️ [Supabase] Using fallback configuration. ' +
+        'Create a .env file with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY ' +
+        'for proper configuration. See UPLOAD_FIX_GUIDE.md for details.'
+    );
+}
+
 export const supabase = createClient(
   SUPABASE_URL,
   SUPABASE_ANON_KEY,
