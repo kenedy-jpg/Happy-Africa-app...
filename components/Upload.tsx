@@ -63,7 +63,7 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
   const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
 
   const PROCESS_STEPS = [
-    "Compressing Video...",
+    "Preparing Video...",
     "Uploading to Server...",
     "Finalizing Post..."
   ];
