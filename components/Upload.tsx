@@ -130,17 +130,21 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
   };
 
   const generateThumbnail = (videoUrl: string) => {
+      // Generate thumbnail asynchronously without blocking upload
       if (videoUrl.startsWith('data:image')) {
           setGeneratedThumbnail(videoUrl);
           return;
       }
-      const video = document.createElement('video');
-      video.src = videoUrl; 
-      video.crossOrigin = 'anonymous'; 
-      video.playsInline = true; // Mobile Safari compatibility
-      video.muted = true;
-      video.currentTime = 1; 
-      video.onloadeddata = () => {
+      
+      // Use setTimeout to ensure this doesn't block the main thread
+      setTimeout(() => {
+          const video = document.createElement('video');
+          video.src = videoUrl; 
+          video.crossOrigin = 'anonymous'; 
+          video.playsInline = true;
+          video.muted = true;
+          video.currentTime = 0.5; 
+          video.onloadeddata = () => {
               const canvas = document.createElement('canvas'); 
               canvas.width = video.videoWidth || 720; 
               canvas.height = video.videoHeight || 1280;
@@ -153,12 +157,12 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
                       console.warn('[Upload] Thumbnail generation failed:', e);
                   }
               }
-              // Clean up
               video.src = '';
-      };
-      video.onerror = () => {
-          console.warn('[Upload] Thumbnail video load failed');
-      };
+          };
+          video.onerror = () => {
+              console.warn('[Upload] Thumbnail video load failed');
+          };
+      }, 10); // Small delay to ensure UI updates first
   };
 
   /**
@@ -215,7 +219,10 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
            setFileUrl(url); 
            setClips([]); 
            setMediaType('video');
-           extractMetadata(url);
+           // Set metadata ready immediately for fast upload
+           setExtractedDuration(videoDuration > 180 ? 180 : videoDuration);
+           setIsMetadataReady(true);
+           // Generate thumbnail in background (optional)
            generateThumbnail(url); 
            setMode('edit');
          };
@@ -227,7 +234,10 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
            setFileUrl(url); 
            setClips([]); 
            setMediaType('video');
-           extractMetadata(url);
+           // Set defaults immediately for fast upload
+           setExtractedDuration(15);
+           setIsMetadataReady(true);
+           // Generate thumbnail in background (optional)
            generateThumbnail(url); 
            setMode('edit');
          };
