@@ -470,20 +470,15 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
             <div className="flex-1 flex flex-col items-center justify-center bg-brand-indigo p-10 text-center">
                 <div className="flex flex-col items-center gap-8 w-full max-w-sm">
                     {/* Going Viral Animation */}
-                    <div className="relative w-32 h-32">
-                        {/* Outer rings */}
-                        <div className="absolute inset-0 border-4 border-brand-pink rounded-full animate-pulse"></div>
-                        <div className="absolute inset-2 border-3 border-brand-gold rounded-full" style={{ animation: 'spin 3s linear infinite' }}></div>
-                        <div className="absolute inset-4 border-2 border-brand-pink rounded-full animate-pulse" style={{ animationDelay: '0.5s' }}></div>
-                        
-                        {/* Center icon */}
+                    <div className="relative">
+                        <div className="w-24 h-24 border-[6px] border-brand-pink border-t-transparent rounded-full animate-spin"></div>
                         <div className="absolute inset-0 flex items-center justify-center">
                             <div className="text-3xl animate-bounce">🚀</div>
                         </div>
                     </div>
                     
                     <div className="space-y-3 w-full">
-                        <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-brand-pink to-brand-gold uppercase tracking-widest animate-pulse">
+                        <h2 className="text-2xl font-black text-white uppercase tracking-widest animate-pulse">
                             GOING VIRAL! 🔥
                         </h2>
                         <p className="text-brand-gold text-sm font-black uppercase tracking-[0.2em]">Posted Instantly</p>
