@@ -31,8 +31,8 @@ export async function uploadVideoWithPresignedUrl(
   options: UploadOptions = {}
 ): Promise<{ success: boolean; error?: string }> {
   const {
-    maxRetries = 3,
-    retryDelay = 1000,
+    maxRetries = 2,
+    retryDelay = 500,
     onProgress,
     signal
   } = options;
@@ -203,8 +203,8 @@ async function uploadWithProgress(
     // Open and send request
     xhr.open('PUT', signedUrl);
     
-    // Set timeout (10 minutes for large files)
-    xhr.timeout = 600000; // 10 minutes
+    // Set timeout (5 minutes for faster failure detection)
+    xhr.timeout = 300000; // 5 minutes
     
     xhr.addEventListener('timeout', () => {
       console.error('[UploadService] XHR timeout');
