@@ -226,17 +226,29 @@ export const App: React.FC = () => {
         return;
     }
     try {
+        // ✅ SHOW IMMEDIATELY in feed and profile
         injectVideo({ ...newVideo, isLocal: true });
         setMyVideos(prev => [{ ...newVideo, isLocal: true }, ...prev]);
         setActiveTab('profile');
+        
+        // ✅ Show success message immediately
+        setActiveToast({ user: 'System', avatar: '', text: '✅ Video Posted! 🌍', type: 'system' });
 
+        // Upload in background (non-blocking) - don't wait for it
         if (file && currentUser) {
-            await backend.content.uploadVideo(file, newVideo.description, newVideo.poster, newVideo.duration);
-            await syncUserState(currentUser.id);
+            backend.content.uploadVideo(file, newVideo.description, newVideo.poster, newVideo.duration)
+              .then(() => {
+                console.log('[Upload] Background upload complete');
+                syncUserState(currentUser.id); // Sync after upload
+              })
+              .catch((error: any) => {
+                console.error('[Upload] Background upload error:', error);
+                setActiveToast({ user: 'System', avatar: '', text: `Sync warning: ${error.message}`, type: 'error' });
+              });
         }
         
-        setFeedRefreshTrigger(prev => prev + 1); 
-        setActiveToast({ user: 'System', avatar: '', text: 'Video Sync Complete! 🌍', type: 'system' });
+        // Refresh feed immediately to show new post
+        setFeedRefreshTrigger(prev => prev + 1);
     } catch (e: any) { 
         setActiveToast({ user: 'System', avatar: '', text: `Upload failed: ${e.message}`, type: 'error' }); 
     }

@@ -301,8 +301,12 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
      setProcessStep(0);
      
      try {
-       // Upload to Supabase to ensure persistence with progress tracking
-       await backend.content.uploadVideo(
+       // ✅ POST IMMEDIATELY - Don't wait for upload to complete
+       // Call completeUpload first to show post immediately in feed
+       completeUpload(isDraft);
+       
+       // Then upload in background (non-blocking)
+       backend.content.uploadVideo(
          selectedFile, 
          description, 
          generatedThumbnail, 
@@ -313,8 +317,9 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
            const progressStep = Math.floor((progress / 100) * PROCESS_STEPS.length);
            setProcessStep(Math.min(progressStep, PROCESS_STEPS.length - 1));
          }
-       );
-       completeUpload(isDraft);
+       ).catch((error: any) => {
+         console.error('[Upload] Background upload error:', error?.message);
+       });
      } catch (error: any) {
        console.error('Upload error details:', {
          message: error?.message,
