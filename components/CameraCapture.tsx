@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { X, RotateCcw, Zap, Check, Music, Wand2, Image as ImageIcon, Delete, Sparkles, Loader, Mic, MicOff } from 'lucide-react';
+import { X, RotateCcw, Zap, Check, Music, Wand2, Image as ImageIcon, Delete, Sparkles, Loader, Mic, MicOff, Link as LinkIcon } from 'lucide-react';
 import { MusicPicker } from './MusicPicker';
 import { CreationContext, MusicTrack, Clip } from '../types';
 
@@ -55,6 +55,10 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const MODES = ['Photo', '15s', '60s'];
   const [activeMode, setActiveMode] = useState('15s');
+  const [showUrlModal, setShowUrlModal] = useState(false);
+  const [urlInput, setUrlInput] = useState('');
+  const [isDownloadingUrl, setIsDownloadingUrl] = useState(false);
+  const [urlDownloadProgress, setUrlDownloadProgress] = useState(0);
 
   const maxDuration = activeMode === '60s' ? 60000 : 15000;
 
@@ -213,6 +217,50 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose
       setTimeout(() => setIsCapturingPhoto(false), 300);
   };
 
+  const handleUrlUpload = async () => {
+    if (!urlInput.trim()) return;
+
+    setIsDownloadingUrl(true);
+    setUrlDownloadProgress(0);
+
+    try {
+      // Import the download function
+      const { downloadVideoFromUrl } = await import('../services/uploadService');
+      
+      // Download the video
+      const file = await downloadVideoFromUrl(urlInput, (progress) => {
+        setUrlDownloadProgress(progress);
+      });
+
+      // Create a synthetic file input event
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      
+      const syntheticEvent = {
+        target: {
+          files: dataTransfer.files,
+          value: ''
+        }
+      } as React.ChangeEvent<HTMLInputElement>;
+
+      // Call the file select handler
+      if (onFileSelect) {
+        onFileSelect(syntheticEvent);
+      }
+
+      // Close modal and reset state
+      setShowUrlModal(false);
+      setUrlInput('');
+      setIsDownloadingUrl(false);
+      setUrlDownloadProgress(0);
+    } catch (error: any) {
+      console.error('[CameraCapture] URL download error:', error);
+      alert(`Failed to download video: ${error.message}`);
+      setIsDownloadingUrl(false);
+      setUrlDownloadProgress(0);
+    }
+  };
+
   return (
     <div className="absolute inset-0 bg-brand-indigo z-50 flex flex-col">
       <input 
@@ -298,20 +346,93 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose
                         <Check size={24} className="text-white" strokeWidth={4} />
                     </button>
                 ) : (
-                    <button 
-                        onClick={() => fileInputRef.current?.click()}
-                        className="flex flex-col items-center gap-1 active:scale-95 transition-transform"
-                    >
-                        <div className="w-10 h-10 rounded bg-white/10 border border-white/20 flex items-center justify-center overflow-hidden">
-                            <ImageIcon size={22} className="text-white" />
-                        </div>
-                        <span className="text-[9px] font-black uppercase text-white mt-1">Upload</span>
-                    </button>
+                    <div className="flex flex-col items-center gap-2">
+                        <button 
+                            onClick={() => fileInputRef.current?.click()}
+                            className="flex flex-col items-center gap-1 active:scale-95 transition-transform"
+                        >
+                            <div className="w-10 h-10 rounded bg-white/10 border border-white/20 flex items-center justify-center overflow-hidden">
+                                <ImageIcon size={22} className="text-white" />
+                            </div>
+                            <span className="text-[9px] font-black uppercase text-white mt-0.5">File</span>
+                        </button>
+                        <button 
+                            onClick={() => setShowUrlModal(true)}
+                            className="flex flex-col items-center gap-1 active:scale-95 transition-transform"
+                        >
+                            <div className="w-10 h-10 rounded bg-white/10 border border-white/20 flex items-center justify-center overflow-hidden">
+                                <LinkIcon size={22} className="text-white" />
+                            </div>
+                            <span className="text-[9px] font-black uppercase text-white mt-0.5">URL</span>
+                        </button>
+                    </div>
                 )}
              </div>
           </div>
       </div>
       {showMusicPicker && <MusicPicker onSelect={(track) => { onSelectTrack(track); setShowMusicPicker(false); }} onClose={() => setShowMusicPicker(false)} />}
+      
+      {/* URL Upload Modal */}
+      {showUrlModal && (
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-brand-indigo rounded-2xl w-full max-w-md border border-white/10 shadow-2xl">
+            <div className="p-6 border-b border-white/10 flex justify-between items-center">
+              <h3 className="text-white font-black text-lg uppercase tracking-wide">Upload from URL</h3>
+              <button onClick={() => { setShowUrlModal(false); setUrlInput(''); }} className="text-gray-400 hover:text-white">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="text-white text-sm font-bold mb-2 block">Video URL</label>
+                <input
+                  type="url"
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                  placeholder="https://example.com/video.mp4"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 outline-none focus:border-brand-pink transition-colors"
+                  disabled={isDownloadingUrl}
+                />
+                <p className="text-gray-400 text-xs mt-2">Paste a direct link to a video file (MP4, WebM, MOV, etc.)</p>
+              </div>
+
+              {isDownloadingUrl && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs text-white">
+                    <span>Downloading...</span>
+                    <span>{Math.round(urlDownloadProgress)}%</span>
+                  </div>
+                  <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-brand-pink to-brand-gold transition-all duration-300"
+                      style={{ width: `${urlDownloadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={handleUrlUpload}
+                disabled={!urlInput.trim() || isDownloadingUrl}
+                className="w-full bg-brand-pink text-white py-3 rounded-lg font-black text-sm uppercase tracking-wide disabled:opacity-30 hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2"
+              >
+                {isDownloadingUrl ? (
+                  <>
+                    <Loader size={18} className="animate-spin" />
+                    Downloading...
+                  </>
+                ) : (
+                  <>
+                    <LinkIcon size={18} />
+                    Load Video
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

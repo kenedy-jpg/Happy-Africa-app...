@@ -4,6 +4,7 @@ import { Video, FeedType, PageRoute } from '../types';
 import { backend } from '../services/backend';
 import { supabase } from '../services/supabaseClient';
 import { ChevronLeft, Loader, Video as VideoIcon, RefreshCw } from 'lucide-react';
+import { useVideoRealtime, fetchVideoWithProfile } from '../hooks/useVideoRealtime';
 
 interface VideoFeedProps {
   onOpenComments: (videoId: string) => void;
@@ -105,6 +106,25 @@ export const VideoFeed: React.FC<VideoFeedProps> = ({
   useEffect(() => {
     loadVideos();
   }, [type, refreshTrigger]);
+
+  // Real-time subscription for new videos
+  useVideoRealtime({
+    enabled: type !== 'custom',
+    onVideoInserted: async (videoData) => {
+      console.log('[VideoFeed] New video received via realtime');
+      const newVideo = await fetchVideoWithProfile(videoData);
+      if (newVideo) {
+        setVideos(prev => {
+          // Check if video already exists
+          if (prev.some(v => v.id === newVideo.id)) {
+            return prev;
+          }
+          // Add to top of feed
+          return [newVideo, ...prev];
+        });
+      }
+    }
+  });
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
       const target = e.currentTarget;

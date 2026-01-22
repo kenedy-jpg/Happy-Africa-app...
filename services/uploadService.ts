@@ -361,3 +361,99 @@ export function formatTimeRemaining(seconds: number): string {
   const secs = Math.ceil(seconds % 60);
   return `${minutes}m ${secs}s`;
 }
+
+/**
+ * Download video from URL and convert to File
+ */
+export async function downloadVideoFromUrl(
+  url: string,
+  onProgress?: (progress: number) => void
+): Promise<File> {
+  console.log('[UploadService] Downloading video from URL:', url);
+
+  try {
+    // Validate URL
+    const urlObj = new URL(url);
+    if (!['http:', 'https:'].includes(urlObj.protocol)) {
+      throw new Error('Invalid URL protocol. Only HTTP and HTTPS are supported.');
+    }
+
+    // Fetch with progress tracking
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to download video: ${response.status} ${response.statusText}`);
+    }
+
+    // Get content type and size
+    const contentType = response.headers.get('content-type') || 'video/mp4';
+    const contentLength = parseInt(response.headers.get('content-length') || '0', 10);
+
+    // Validate content type
+    if (!contentType.startsWith('video/')) {
+      throw new Error('URL does not point to a video file.');
+    }
+
+    // Read response with progress
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('Unable to read response body');
+    }
+
+    const chunks: Uint8Array[] = [];
+    let receivedLength = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      
+      if (done) break;
+      
+      chunks.push(value);
+      receivedLength += value.length;
+      
+      if (contentLength > 0 && onProgress) {
+        onProgress((receivedLength / contentLength) * 100);
+      }
+    }
+
+    // Combine chunks into single Uint8Array
+    const allChunks = new Uint8Array(receivedLength);
+    let position = 0;
+    for (const chunk of chunks) {
+      allChunks.set(chunk, position);
+      position += chunk.length;
+    }
+
+    // Convert to Blob then File
+    const blob = new Blob([allChunks], { type: contentType });
+    const fileName = `url_video_${Date.now()}${getExtensionFromContentType(contentType)}`;
+    const file = new File([blob], fileName, { type: contentType });
+
+    console.log('[UploadService] Video downloaded successfully:', {
+      fileName,
+      size: file.size,
+      type: file.type
+    });
+
+    return file;
+
+  } catch (error: any) {
+    console.error('[UploadService] Failed to download video from URL:', error);
+    throw new Error(`Failed to download video: ${error.message}`);
+  }
+}
+
+/**
+ * Get file extension from content type
+ */
+function getExtensionFromContentType(contentType: string): string {
+  const extensionMap: Record<string, string> = {
+    'video/mp4': '.mp4',
+    'video/webm': '.webm',
+    'video/quicktime': '.mov',
+    'video/x-msvideo': '.avi',
+    'video/x-matroska': '.mkv',
+    'video/mpeg': '.mpeg'
+  };
+  return extensionMap[contentType] || '.mp4';
+}
