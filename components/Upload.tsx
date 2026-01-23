@@ -22,7 +22,7 @@ interface UploadProps {
 
 type Mode = 'capture' | 'edit' | 'details' | 'processing' | 'live' | 'trim';
 
-const DetailsHeader = ({ title, onBack, onNext, isUploading, isMetadataReady }: any) => (
+const DetailsHeader = ({ title, onBack, onNext, isUploading }: any) => (
   <div className="flex justify-between items-center p-4 pt-safe border-b border-white/10 bg-brand-indigo z-[60] shrink-0">
       <button onClick={onBack} className="p-2 -ml-2 text-white active:opacity-50 flex items-center gap-1 touch-manipulation">
           <ChevronLeft size={24} />
@@ -31,11 +31,11 @@ const DetailsHeader = ({ title, onBack, onNext, isUploading, isMetadataReady }: 
       <h2 className="text-white font-black text-sm uppercase tracking-[0.2em]">{title}</h2>
       <button 
           onClick={onNext} 
-          disabled={isUploading || !isMetadataReady}
+          disabled={isUploading}
           className="bg-brand-pink text-white px-6 py-2.5 rounded-full text-xs font-black shadow-lg shadow-brand-pink/20 active:scale-95 transition-transform hover:brightness-110 disabled:opacity-30 touch-manipulation min-w-[80px]"
           style={{ WebkitTapHighlightColor: 'transparent' }}
       >
-          {isUploading ? 'WAIT...' : 'POST'}
+          {isUploading ? 'UPLOADING...' : 'POST'}
       </button>
   </div>
 );
@@ -282,7 +282,7 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
   };
 
   const handlePost = async (isDraft: boolean = false) => {
-     console.log('[Upload] POST clicked', { isMetadataReady, hasFile: !!selectedFile, duration: extractedDuration });
+     console.log('[Upload] POST clicked - FAST UPLOAD MODE', { hasFile: !!selectedFile });
      
      if (!selectedFile) {
        console.error('[Upload] No file selected');
@@ -290,16 +290,11 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
        return;
      }
      
-     // Allow posting even if metadata isn't ready yet (with fallback duration)
-     if (!isMetadataReady) {
-       console.warn('[Upload] Metadata not ready, using fallback duration');
-       setExtractedDuration(15); // Use default
-       setIsMetadataReady(true);
-     }
-     
+     // ⚡ Fast upload: Start immediately without waiting for metadata
      setIsUploadingNow(true);
      setMode('processing'); 
      setProcessStep(0);
+     setUploadProgress(0);
      
      try {
        // ✅ FIXED: Use postUploadService to save to posts table for consistency
@@ -309,11 +304,12 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
          throw new Error('You must be logged in to upload videos');
        }
        
+       // ⚡ Start upload immediately - don't wait for metadata
        const result = await uploadVideoAndCreatePost(selectedFile, {
          userId: user.id,
-         description: description,
+         description: description || 'Posted from Happy Africa',
          category: category,
-         visibility: visibility,
+         visibility: visibility || 'public',
          onProgress: (progress) => {
            // Track real upload progress (0-100)
            setUploadProgress(progress);
@@ -434,7 +430,7 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
         {mode === 'trim' && creationContext?.type === 'stitch' && <VideoTrimmer sourceVideo={creationContext.video} onCancel={onCancel} onNext={(data) => { setMode('capture'); }} />}
         {mode === 'details' && (
             <div className="flex-1 flex flex-col bg-brand-indigo overflow-hidden">
-                <DetailsHeader title="Post" onBack={() => setMode('edit')} onNext={() => handlePost(false)} isUploading={isUploadingNow} isMetadataReady={isMetadataReady} />
+                <DetailsHeader title="Post" onBack={() => setMode('edit')} onNext={() => handlePost(false)} isUploading={isUploadingNow} />
                 <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-6 no-scrollbar pb-32">
                     <div className="flex gap-4 items-start">
                         <div className="flex-1 bg-white/5 rounded-xl p-4 border border-white/10">

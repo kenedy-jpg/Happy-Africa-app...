@@ -130,8 +130,8 @@ async function uploadFileToPresignedUrl(
   onProgress?: (progress: number) => void,
   retryCount: number = 0
 ): Promise<void> {
-  const MAX_RETRIES = 3;
-  const TIMEOUT_MS = 120000; // 2 minutes - faster failure detection
+  const MAX_RETRIES = 2; // Reduced from 3
+  const TIMEOUT_MS = 90000; // 90 seconds - fast timeout for better UX
   
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -161,20 +161,18 @@ async function uploadFileToPresignedUrl(
     xhr.addEventListener('load', () => {
       if (xhr.status >= 200 && xhr.status < 300) {
         const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-        console.log(`[Upload] Complete! Took ${duration}s`);
+        console.log(`[Upload] ✅ Complete! Took ${duration}s`);
         resolve();
-      } else {
+      } else if (xhr.status >= 500 && retryCount < MAX_RETRIES) {
         // Retry on server errors (5xx)
-        if (xhr.status >= 500 && retryCount < MAX_RETRIES) {
-          console.warn(`[Upload] Server error ${xhr.status}, retrying (${retryCount + 1}/${MAX_RETRIES})...`);
-          setTimeout(() => {
-            uploadFileToPresignedUrl(signedUrl, file, token, onProgress, retryCount + 1)
-              .then(resolve)
-              .catch(reject);
-          }, 1000 * (retryCount + 1)); // Exponential backoff
-        } else {
-          reject(new Error(`Upload failed with status ${xhr.status}: ${xhr.statusText}`));
-        }
+        console.warn(`[Upload] Server error ${xhr.status}, retrying (${retryCount + 1}/${MAX_RETRIES})...`);
+        setTimeout(() => {
+          uploadFileToPresignedUrl(signedUrl, file, token, onProgress, retryCount + 1)
+            .then(resolve)
+            .catch(reject);
+        }, 500 * (retryCount + 1)); // Faster backoff
+      } else {
+        reject(new Error(`Upload failed with status ${xhr.status}: ${xhr.statusText}`));
       }
     });
 
@@ -186,7 +184,7 @@ async function uploadFileToPresignedUrl(
           uploadFileToPresignedUrl(signedUrl, file, token, onProgress, retryCount + 1)
             .then(resolve)
             .catch(reject);
-        }, 1000 * (retryCount + 1)); // Exponential backoff
+        }, 500 * (retryCount + 1)); // Faster backoff
       } else {
         reject(new Error('Network error during upload after retries'));
       }
@@ -199,14 +197,14 @@ async function uploadFileToPresignedUrl(
     xhr.addEventListener('timeout', () => {
       // Retry on timeout
       if (retryCount < MAX_RETRIES) {
-        console.warn(`[Upload] Timeout, retrying (${retryCount + 1}/${MAX_RETRIES})...`);
+        console.warn(`[Upload] Timeout (>${TIMEOUT_MS / 1000}s), retrying (${retryCount + 1}/${MAX_RETRIES})...`);
         setTimeout(() => {
           uploadFileToPresignedUrl(signedUrl, file, token, onProgress, retryCount + 1)
             .then(resolve)
             .catch(reject);
-        }, 1000 * (retryCount + 1));
+        }, 500 * (retryCount + 1)); // Faster backoff
       } else {
-        reject(new Error('Upload timed out after retries'));
+        reject(new Error(`Upload timed out after ${TIMEOUT_MS / 1000}s`));
       }
     });
 
