@@ -209,7 +209,8 @@ export const backend = {
 
     async fetchVideosSafe(queryModifier: (query: any) => any): Promise<Video[]> {
         try {
-            const { data: vData, error: vError } = await queryModifier(supabase.from("videos").select("*"));
+            // ✅ Query posts table instead of videos table for consistency
+            const { data: vData, error: vError } = await queryModifier(supabase.from("posts").select("*, profiles!posts_user_id_fkey(id, username, full_name, avatar_url)"));
             if (vError) throw vError;
             if (!vData || vData.length === 0) return [];
             
@@ -217,7 +218,11 @@ export const backend = {
             if (userIds.length === 0) {
                 return await Promise.all(vData.map(async (v: any) => {
                     let url = v.url || v.video_url || v.media_url;
-                    if (v.file_path) {
+                    // ✅ For posts table, use video_path field
+                    if (v.video_path) {
+                        const { data } = supabase.storage.from('videos').getPublicUrl(v.video_path);
+                        url = data.publicUrl;
+                    } else if (v.file_path) {
                         url = await this.getSignedUrl(v.file_path);
                     } else if (v.url && (v.url.includes('/public/videos/') || !v.url.startsWith('http'))) {
                         const path = decodeURIComponent(v.url.includes('/public/videos/') ? v.url.split('/public/videos/')[1] : v.url);
@@ -246,11 +251,14 @@ export const backend = {
             const profileMap = new Map(pData?.map(p => [p.id, p]) || []);
             
             return vData.map((v: any) => {
-                // ✅ Use public URL directly for faster loading (no signed URL needed)
+                // ✅ For posts table: prioritize video_path field
                 let url = v.video_url || v.url || v.media_url;
                 
-                // If we only have file_path, construct public URL directly
-                if (!url && v.file_path) {
+                // If we have video_path, construct public URL directly
+                if (v.video_path) {
+                    const { data } = supabase.storage.from('videos').getPublicUrl(v.video_path);
+                    url = data.publicUrl;
+                } else if (!url && v.file_path) {
                     const { data } = supabase.storage.from('videos').getPublicUrl(v.file_path);
                     url = data.publicUrl;
                 }
@@ -305,10 +313,10 @@ export const backend = {
             
             console.log(`[Backend] Fetching feed page ${page}, range ${from}-${to}`);
             
-            // ✅ Fetch ALL published videos from database (public feed like TikTok)
+            // ✅ Fetch ALL public posts from database (public feed like TikTok)
             // This ensures EVERYONE can see EVERYONE's videos
             const liveVideos = await backend.content.fetchVideosSafe((q: any) => 
-                q.eq('is_published', true)  // Only show published videos
+                q.eq('visibility', 'public')  // Only show public posts
                  .order("created_at", { ascending: false })
                  .range(from, to)
             );

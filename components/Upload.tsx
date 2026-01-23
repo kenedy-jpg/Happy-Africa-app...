@@ -10,6 +10,7 @@ import { ErrorModal } from './ErrorModal';
 import { backend } from '../services/backend';
 import { uploadDiagnostics } from '../services/uploadDiagnostics';
 import { validateVideo, VIDEO_CONSTRAINTS, formatFileSize, formatDuration } from '../services/videoUploadHelper';
+import { uploadVideoAndCreatePost } from '../services/postUploadService';
 
 interface UploadProps {
   currentUser: User;
@@ -301,23 +302,32 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
      setProcessStep(0);
      
      try {
-       // ✅ FIXED: Wait for upload to complete BEFORE calling completeUpload
-       // This ensures the video is saved to database and will persist after refresh
-       await backend.content.uploadVideo(
-         selectedFile, 
-         description, 
-         generatedThumbnail, 
-         extractedDuration,
-         (progress) => {
+       // ✅ FIXED: Use postUploadService to save to posts table for consistency
+       // This ensures ALL users' videos are saved and persist after refresh
+       const user = await backend.auth.getCurrentUserAsync();
+       if (!user) {
+         throw new Error('You must be logged in to upload videos');
+       }
+       
+       const result = await uploadVideoAndCreatePost(selectedFile, {
+         userId: user.id,
+         description: description,
+         category: category,
+         visibility: visibility,
+         onProgress: (progress) => {
            // Track real upload progress (0-100)
            setUploadProgress(progress);
            const progressStep = Math.floor((progress / 100) * PROCESS_STEPS.length);
            setProcessStep(Math.min(progressStep, PROCESS_STEPS.length - 1));
          }
-       );
+       });
+       
+       if (!result.success) {
+         throw new Error(result.error || 'Upload failed');
+       }
        
        // ✅ Only after successful upload, call completeUpload to update UI
-       console.log('[Upload] Video uploaded successfully, updating UI');
+       console.log('[Upload] Video uploaded successfully to posts table, ID:', result.postId);
        completeUpload(isDraft);
        
      } catch (error: any) {

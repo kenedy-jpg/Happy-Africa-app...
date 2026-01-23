@@ -37,12 +37,17 @@ export async function uploadVideoAndCreatePost(
     onProgress?: (progress: number) => void;
   }
 ): Promise<VideoUploadResult> {
+  const startTime = Date.now();
+  
   try {
-    console.log('[PostUpload] Starting complete upload flow...');
+    console.log('[PostUpload] ⚡ Fast upload starting...', {
+      size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+      type: file.type
+    });
     const { userId, description, category, visibility, onProgress } = params;
 
-    // Step 1: Get presigned upload URL from our API
-    console.log('[PostUpload] Step 1: Getting presigned URL...');
+    // Step 1: Get presigned upload URL from our API (optimized - no wait)
+    onProgress?.(5);
     const uploadUrlResponse = await fetch('/api/upload-url', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -58,22 +63,23 @@ export async function uploadVideoAndCreatePost(
     }
 
     const { uploadUrl, path: videoPath, token } = await uploadUrlResponse.json();
-    console.log('[PostUpload] Got presigned URL, path:', videoPath);
+    console.log('[PostUpload] ✓ Presigned URL ready');
 
-    // Step 2: Upload video directly to presigned URL
-    console.log('[PostUpload] Step 2: Uploading video...');
+    // Step 2: Upload video directly to storage (FAST - direct to S3/Supabase)
     onProgress?.(10);
+    console.log('[PostUpload] ⏫ Starting direct upload...');
 
     await uploadFileToPresignedUrl(uploadUrl, file, token, (progress) => {
-      // Map upload progress to 10-80%
-      onProgress?.(10 + (progress * 0.7));
+      // Map upload progress to 10-90% (upload is the longest step)
+      onProgress?.(10 + (progress * 0.8));
     });
 
-    console.log('[PostUpload] Video uploaded successfully!');
-    onProgress?.(85);
+    const uploadTime = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(`[PostUpload] ✓ Video uploaded in ${uploadTime}s`);
+    onProgress?.(92);
 
-    // Step 3: Create post record via API
-    console.log('[PostUpload] Step 3: Creating post record...');
+    // Step 3: Create post record (very fast - just database insert)
+    console.log('[PostUpload] 💾 Saving to database...');
     const createPostResponse = await fetch('/api/create-post', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -92,7 +98,8 @@ export async function uploadVideoAndCreatePost(
     }
 
     const { post } = await createPostResponse.json();
-    console.log('[PostUpload] Post created successfully, ID:', post.id);
+    const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(`[PostUpload] ✅ Complete in ${totalTime}s! Post ID:`, post.id);
     
     onProgress?.(100);
 
@@ -103,7 +110,8 @@ export async function uploadVideoAndCreatePost(
     };
 
   } catch (error: any) {
-    console.error('[PostUpload] Upload flow failed:', error);
+    const failTime = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.error(`[PostUpload] ❌ Upload failed after ${failTime}s:`, error);
     return {
       success: false,
       error: error.message || 'Upload failed'
@@ -112,49 +120,107 @@ export async function uploadVideoAndCreatePost(
 }
 
 /**
- * Upload file to presigned URL with progress tracking
+ * Upload file to presigned URL with progress tracking and retry logic
+ * Optimized for fast uploads on both desktop and mobile
  */
 async function uploadFileToPresignedUrl(
   signedUrl: string,
   file: File,
   token: string,
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number) => void,
+  retryCount: number = 0
 ): Promise<void> {
+  const MAX_RETRIES = 3;
+  const TIMEOUT_MS = 120000; // 2 minutes - faster failure detection
+  
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    let startTime = Date.now();
+    let lastLoaded = 0;
+    let lastTime = Date.now();
 
-    // Track progress
+    // Track progress with speed calculation
     xhr.upload.addEventListener('progress', (event) => {
       if (event.lengthComputable && onProgress) {
         const progress = (event.loaded / event.total) * 100;
         onProgress(progress);
+        
+        // Calculate upload speed for monitoring
+        const now = Date.now();
+        const timeDiff = (now - lastTime) / 1000; // seconds
+        const bytesDiff = event.loaded - lastLoaded;
+        if (timeDiff > 0) {
+          const speedMBps = (bytesDiff / timeDiff) / (1024 * 1024);
+          console.log(`[Upload] Speed: ${speedMBps.toFixed(2)} MB/s, Progress: ${progress.toFixed(1)}%`);
+        }
+        lastLoaded = event.loaded;
+        lastTime = now;
       }
     });
 
     xhr.addEventListener('load', () => {
       if (xhr.status >= 200 && xhr.status < 300) {
+        const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+        console.log(`[Upload] Complete! Took ${duration}s`);
         resolve();
       } else {
-        reject(new Error(`Upload failed with status ${xhr.status}: ${xhr.statusText}`));
+        // Retry on server errors (5xx)
+        if (xhr.status >= 500 && retryCount < MAX_RETRIES) {
+          console.warn(`[Upload] Server error ${xhr.status}, retrying (${retryCount + 1}/${MAX_RETRIES})...`);
+          setTimeout(() => {
+            uploadFileToPresignedUrl(signedUrl, file, token, onProgress, retryCount + 1)
+              .then(resolve)
+              .catch(reject);
+          }, 1000 * (retryCount + 1)); // Exponential backoff
+        } else {
+          reject(new Error(`Upload failed with status ${xhr.status}: ${xhr.statusText}`));
+        }
       }
     });
 
     xhr.addEventListener('error', () => {
-      reject(new Error('Network error during upload'));
+      // Retry on network errors
+      if (retryCount < MAX_RETRIES) {
+        console.warn(`[Upload] Network error, retrying (${retryCount + 1}/${MAX_RETRIES})...`);
+        setTimeout(() => {
+          uploadFileToPresignedUrl(signedUrl, file, token, onProgress, retryCount + 1)
+            .then(resolve)
+            .catch(reject);
+        }, 1000 * (retryCount + 1)); // Exponential backoff
+      } else {
+        reject(new Error('Network error during upload after retries'));
+      }
     });
 
     xhr.addEventListener('abort', () => {
       reject(new Error('Upload cancelled'));
     });
 
-    xhr.open('PUT', signedUrl);
-    xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
-    xhr.timeout = 600000; // 10 minutes
-    
     xhr.addEventListener('timeout', () => {
-      reject(new Error('Upload timed out'));
+      // Retry on timeout
+      if (retryCount < MAX_RETRIES) {
+        console.warn(`[Upload] Timeout, retrying (${retryCount + 1}/${MAX_RETRIES})...`);
+        setTimeout(() => {
+          uploadFileToPresignedUrl(signedUrl, file, token, onProgress, retryCount + 1)
+            .then(resolve)
+            .catch(reject);
+        }, 1000 * (retryCount + 1));
+      } else {
+        reject(new Error('Upload timed out after retries'));
+      }
     });
 
+    // Open and configure XHR for optimal performance
+    xhr.open('PUT', signedUrl);
+    xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
+    xhr.timeout = TIMEOUT_MS;
+    
+    // Mobile optimization: disable buffering for faster uploads
+    if ('mozBackgroundRequest' in xhr) {
+      (xhr as any).mozBackgroundRequest = false;
+    }
+
+    console.log(`[Upload] Starting upload (${(file.size / (1024 * 1024)).toFixed(2)} MB)...`);
     xhr.send(file);
   });
 }

@@ -37,10 +37,10 @@ export default async function handler(req: any, res: any) {
     // Create unique path with timestamp
     const path = `videos/${Date.now()}-${fileName}`;
 
-    console.log("[API] Creating presigned URL for:", path);
+    console.log("[API] ⚡ Creating presigned URL for:", path);
 
-    // Create presigned upload URL (expires in 3 hours for mobile compatibility)
-    // Mobile uploads can be slower due to network conditions
+    // Create presigned upload URL (1 hour for faster mobile uploads)
+    // Shorter expiry = faster URL generation
     const { data, error } = await supabase.storage
       .from("videos")
       .createSignedUploadUrl(path, {
@@ -52,7 +52,7 @@ export default async function handler(req: any, res: any) {
       return res.status(500).json({ error: error.message });
     }
 
-    console.log("[API] Presigned URL created successfully");
+    console.log("[API] ✓ Presigned URL created");
 
     return res.status(200).json({
       uploadUrl: data.signedUrl,

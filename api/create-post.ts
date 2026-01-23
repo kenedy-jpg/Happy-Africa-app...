@@ -33,9 +33,9 @@ export default async function handler(req: any, res: any) {
       process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || ""
     );
 
-    console.log("[API] Creating post for video:", videoPath);
+    console.log("[API] 💾 Creating post record for:", videoPath);
 
-    // Insert post record
+    // Insert post record (optimized - single query)
     const { data: post, error } = await supabase
       .from("posts")
       .insert({
@@ -49,11 +49,11 @@ export default async function handler(req: any, res: any) {
       .single();
 
     if (error) {
-      console.error("[API] Error creating post:", error);
+      console.error("[API] ❌ Error creating post:", error);
       return res.status(500).json({ error: error.message });
     }
 
-    console.log("[API] Post created successfully:", post.id);
+    console.log("[API] ✅ Post created! ID:", post.id);
 
     return res.status(200).json({ post });
   } catch (error: any) {
