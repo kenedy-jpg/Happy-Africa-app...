@@ -33,17 +33,18 @@ export default async function handler(req: any, res: any) {
       process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || ""
     );
 
-    console.log("[API] 💾 Creating post record for:", videoPath);
+    console.log("[API] 💾 Creating video record for:", videoPath);
 
-    // Insert post record (optimized - single query)
+    // Insert video record into videos table (optimized - single query)
     const { data: post, error } = await supabase
-      .from("posts")
+      .from("videos")
       .insert({
         user_id: userId,
-        video_path: videoPath,
+        url: videoPath,
+        media_url: videoPath,
         description: description || "",
         category: category || "comedy",
-        visibility: visibility || "public"
+        is_published: true
       })
       .select()
       .single();
