@@ -1,5 +1,4 @@
 import { Video, User, FeedType } from '../types';
-import { MOCK_VIDEOS } from '../constants';
 import { supabase } from './supabaseClient';
 
 interface UserInterestProfile {
@@ -32,8 +31,8 @@ const getInitialDatabase = (): Video[] => {
             console.error("[Engine] Failed to parse local posts", e);
         }
     }
-    // Return saved user posts and mock videos for a full feed
-    return [...userPosts, ...MOCK_VIDEOS];
+    // Return saved user posts only - no mock videos
+    return [...userPosts];
 };
 
 let videoDatabase: Video[] = getInitialDatabase();
@@ -100,7 +99,7 @@ export const getLocalDatabase = () => {
     const pinnedIds = new Set(sessionPinnedVideos.map(v => v.id));
     const others = videoDatabase.filter(v => !pinnedIds.has(v.id));
     const merged = [...sessionPinnedVideos, ...others];
-    return merged.length === 0 ? MOCK_VIDEOS : merged;
+    return merged;
 };
 
 export const getPersistentUserPosts = (userId: string) => {

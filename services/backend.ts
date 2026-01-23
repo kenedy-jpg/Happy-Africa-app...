@@ -7,22 +7,6 @@ import { canPerformAction, ExponentialBackoff } from './rateLimiter';
 
 let _cachedUser: User | null = null;
 
-const STARTER_VIBES: Video[] = [
-    {
-        id: 'starter_1',
-        url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
-        poster: 'https://images.unsplash.com/photo-1523821741446-edb2b68bb7a0?auto=format&fit=crop&w=400&h=800',
-        description: 'Welcome to Happy Africa! 🌍 Discover the rhythm of the continent. #HappyAfrica #Vibe #Africa',
-        hashtags: ['#HappyAfrica', '#Vibe', '#Africa'],
-        likes: 45200,
-        comments: 1205,
-        shares: 890,
-        user: MOCK_USERS[0],
-        category: 'travel',
-        duration: 15
-    }
-];
-
 const mapProfileToUser = (profile: any, userId?: string): User | null => {
   if (!profile) {
     // Return null instead of guest user - users must have real profiles
@@ -313,29 +297,21 @@ export const backend = {
             
             console.log(`[Backend] Fetching feed page ${page}, range ${from}-${to}`);
             
-            // ✅ Fetch ALL posts from database (NO visibility filter)
-            // This matches kenxokent's pattern - all videos visible after refresh
+            // ✅ Load ONLY real videos from Supabase database
+            // No generic/demo videos - only user-uploaded content
             const liveVideos = await backend.content.fetchVideosSafe((q: any) => 
                 q.order("created_at", { ascending: false })
                  .range(from, to)
             );
             
-            console.log(`[Backend] Fetched ${liveVideos.length} videos from database`);
+            console.log(`[Backend] Fetched ${liveVideos.length} videos from database for page ${page}`);
             
-            // Combine with starter content for first page
-            if (page === 0) {
-                // Always show starter content on first page PLUS database videos
-                // This ensures users always see something while also showing real uploads
-                const combined = [...liveVideos, ...STARTER_VIBES];
-                return combined.slice(0, pageSize); // Trim to pageSize
-            }
-            
-            // Return database videos (they persist after refresh)
+            // Return only real videos from Supabase
             return liveVideos;
         } catch (e: any) { 
             console.error("[Backend] getFeed failed:", e?.message || e);
-            // On error, return starter content to ensure UX doesn't break
-            return page === 0 ? STARTER_VIBES : [];
+            // Return empty array on error instead of fake videos
+            return [];
         }
     },
     async getMyVideos(userId: string): Promise<Video[]> {

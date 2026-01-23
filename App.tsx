@@ -35,7 +35,7 @@ import { LocationExplorer } from './components/LocationExplorer';
 import { HomeHeader } from './components/HomeHeader';
 import { FollowersList } from './components/FollowersList';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { MOCK_VIDEOS, CURRENT_USER, MOCK_USERS } from './constants';
+import { CURRENT_USER, MOCK_USERS } from './constants';
 import { Tab, Video, FeedType, User, PageRoute, CreationContext, ChatSession } from './types';
 import { RefreshCcw, WifiOff, CloudOff } from 'lucide-react';
 import { injectVideo, markNotInterested, claimLocalVideos } from './services/recommendationEngine';
@@ -298,8 +298,8 @@ export const App: React.FC = () => {
           const page = pageStack[pageStack.length - 1];
           switch (page.name) {
               case 'user-profile': return <UserProfile user={page.user} onBack={popPage} onVideoClick={(v, i, all) => pushPage({name: 'video-detail', videos: all, initialIndex: i})} isFollowed={followedUserIds.has(page.user.id)} onToggleFollow={handleToggleFollow} onRequireAuth={handleRequireAuth} onNavigate={pushPage} />;
-              case 'sound': return <SoundDetail id={page.id} title={page.title} artist={page.subtitle} cover={page.cover} audioUrl={page.audioUrl} allVideos={MOCK_VIDEOS} onBack={popPage} onVideoClick={(v, i, all) => pushPage({name: 'video-detail', videos: all, initialIndex: i})} onUseSound={(t) => { setCreationContext({type: 'sound', track: t}); setActiveTab('upload'); popPage(); }} />;
-              case 'hashtag': return <HashtagDetail id={page.id} allVideos={MOCK_VIDEOS} onBack={popPage} onVideoClick={(v, i, all) => pushPage({name: 'video-detail', videos: all, initialIndex: i})} onJoinHashtag={(tag) => { setCreationContext({type: 'hashtag', tag}); setActiveTab('upload'); popPage(); }} />;
+              case 'sound': return <SoundDetail id={page.id} title={page.title} artist={page.subtitle} cover={page.cover} audioUrl={page.audioUrl} allVideos={[]} onBack={popPage} onVideoClick={(v, i, all) => pushPage({name: 'video-detail', videos: all, initialIndex: i})} onUseSound={(t) => { setCreationContext({type: 'sound', track: t}); setActiveTab('upload'); popPage(); }} />;
+              case 'hashtag': return <HashtagDetail id={page.id} allVideos={[]} onBack={popPage} onVideoClick={(v, i, all) => pushPage({name: 'video-detail', videos: all, initialIndex: i})} onJoinHashtag={(tag) => { setCreationContext({type: 'hashtag', tag}); setActiveTab('upload'); popPage(); }} />;
               case 'edit-profile': return isLoggedIn && currentUser ? <EditProfile user={currentUser} onCancel={popPage} onSave={async (u) => { 
                   // Save to database first
                   await backend.user.updateProfile(u);

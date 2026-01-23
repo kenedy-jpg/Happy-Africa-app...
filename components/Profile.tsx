@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Video, Product, Collection, PageRoute } from '../types';
 import { Menu, UserPlus, Grid, Lock, Heart, Bookmark, Play, ChevronDown, Coins, Edit3, QrCode, Footprints, ShoppingBag, Radio, FolderOpen, BarChart2, Loader, Repeat, Layers, ChevronRight, MessageCircleQuestion, Plus, Wifi, Cloud, Clock, AlertTriangle } from 'lucide-react';
-import { MOCK_VIDEOS, formatNumber, MOCK_PRODUCTS } from '../constants';
+import { formatNumber, MOCK_PRODUCTS } from '../constants';
 import { backend } from '../services/backend';
 import { OptimizedImage } from './OptimizedImage';
 import { CreateCollectionModal } from './CreateCollectionModal';
