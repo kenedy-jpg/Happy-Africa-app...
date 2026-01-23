@@ -28,11 +28,30 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: "fileName and contentType required" });
     }
 
+    // Get Supabase credentials with proper fallback
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || "https://mlgxgylvndtvyqrdfvlw.supabase.co";
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || "";
+
+    // Debug: Log environment setup (without exposing full keys)
+    console.log("[API] Environment check:", {
+      hasViteUrl: !!process.env.VITE_SUPABASE_URL,
+      hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      hasAnonKey: !!process.env.VITE_SUPABASE_ANON_KEY,
+      usingUrl: supabaseUrl.substring(0, 20) + "..."
+    });
+
+    if (!supabaseKey) {
+      console.error("[API] ❌ CRITICAL: No Supabase credentials found!");
+      console.error("[API] Required environment variables missing:");
+      console.error("  - SUPABASE_SERVICE_ROLE_KEY or VITE_SUPABASE_ANON_KEY");
+      return res.status(500).json({ 
+        error: "Server configuration error: Missing Supabase credentials",
+        debug: "Add SUPABASE_SERVICE_ROLE_KEY and VITE_SUPABASE_URL to Vercel environment variables"
+      });
+    }
+
     // Initialize Supabase with service role key for admin access
-    const supabase = createClient(
-      process.env.VITE_SUPABASE_URL || "https://mlgxgylvndtvyqrdfvlw.supabase.co",
-      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || ""
-    );
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Create unique path with timestamp and user ID
     const path = `videos/${Date.now()}-${fileName}`;
@@ -49,7 +68,10 @@ export default async function handler(req: any, res: any) {
 
     if (error) {
       console.error("[API] Error creating signed URL:", error);
-      return res.status(500).json({ error: error.message });
+      return res.status(500).json({ 
+        error: error.message,
+        code: (error as any).code 
+      });
     }
 
     console.log("[API] ✓ Presigned URL created");
@@ -61,6 +83,9 @@ export default async function handler(req: any, res: any) {
     });
   } catch (error: any) {
     console.error("[API] Unexpected error:", error);
-    return res.status(500).json({ error: error.message || "Internal server error" });
+    return res.status(500).json({ 
+      error: error.message || "Internal server error",
+      type: error.name 
+    });
   }
 }
