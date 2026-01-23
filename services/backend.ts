@@ -585,9 +585,30 @@ export const backend = {
         } catch (e) { return []; }
     },
     async updateProfile(user: User): Promise<void> {
-        await supabase.from('profiles').update({
-            full_name: user.displayName, bio: user.bio, avatar_url: user.avatarUrl, profile_views_enabled: user.profileViewsEnabled
+        console.log('[Backend] Updating profile:', {
+            id: user.id,
+            username: user.username,
+            displayName: user.displayName,
+            avatarUrl: user.avatarUrl ? user.avatarUrl.substring(0, 50) + '...' : 'none'
+        });
+        
+        const { error } = await supabase.from('profiles').update({
+            username: user.username,
+            full_name: user.displayName, 
+            bio: user.bio, 
+            avatar_url: user.avatarUrl, 
+            profile_views_enabled: user.profileViewsEnabled
         }).eq('id', user.id);
+        
+        if (error) {
+            console.error('[Backend] Profile update failed:', error);
+            throw error;
+        }
+        
+        console.log('[Backend] Profile updated successfully');
+        
+        // Also update the cached user
+        backend.auth.setUser(user);
     },
     async getFollowers(userId: string): Promise<User[]> { return []; },
     async getFollowing(userId: string): Promise<User[]> { return []; },

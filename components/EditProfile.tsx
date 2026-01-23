@@ -36,20 +36,33 @@ export const EditProfile: React.FC<EditProfileProps> = ({ user, onSave, onCancel
 
     if (selectedFile) {
         try {
-            finalAvatarUrl = await backend.content.uploadImage(selectedFile, 'images');
+            console.log('[EditProfile] Uploading avatar image...');
+            // Try 'avatars' bucket first, fallback to 'images' if it doesn't exist
+            try {
+                finalAvatarUrl = await backend.content.uploadImage(selectedFile, 'avatars');
+            } catch (avatarError) {
+                console.warn('[EditProfile] avatars bucket failed, trying images bucket:', avatarError);
+                finalAvatarUrl = await backend.content.uploadImage(selectedFile, 'images');
+            }
+            console.log('[EditProfile] Avatar uploaded successfully:', finalAvatarUrl);
         } catch (e) {
-            console.error("Failed to upload avatar", e);
-            // Fallback to current if upload fails, or show error logic
+            console.error("[EditProfile] Failed to upload avatar", e);
+            alert('Failed to upload profile picture. Please try again.');
+            setIsUploading(false);
+            return;
         }
     }
 
-    onSave({
+    const updatedUser = {
         ...user,
         displayName,
         username,
         bio,
         avatarUrl: finalAvatarUrl
-    });
+    };
+    
+    console.log('[EditProfile] Saving profile with avatar:', finalAvatarUrl);
+    onSave(updatedUser);
     setIsUploading(false);
   };
 

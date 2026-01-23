@@ -279,7 +279,14 @@ export const App: React.FC = () => {
               case 'user-profile': return <UserProfile user={page.user} onBack={popPage} onVideoClick={(v, i, all) => pushPage({name: 'video-detail', videos: all, initialIndex: i})} isFollowed={followedUserIds.has(page.user.id)} onToggleFollow={handleToggleFollow} onRequireAuth={handleRequireAuth} onNavigate={pushPage} />;
               case 'sound': return <SoundDetail id={page.id} title={page.title} artist={page.subtitle} cover={page.cover} audioUrl={page.audioUrl} allVideos={MOCK_VIDEOS} onBack={popPage} onVideoClick={(v, i, all) => pushPage({name: 'video-detail', videos: all, initialIndex: i})} onUseSound={(t) => { setCreationContext({type: 'sound', track: t}); setActiveTab('upload'); popPage(); }} />;
               case 'hashtag': return <HashtagDetail id={page.id} allVideos={MOCK_VIDEOS} onBack={popPage} onVideoClick={(v, i, all) => pushPage({name: 'video-detail', videos: all, initialIndex: i})} onJoinHashtag={(tag) => { setCreationContext({type: 'hashtag', tag}); setActiveTab('upload'); popPage(); }} />;
-              case 'edit-profile': return isLoggedIn && currentUser ? <EditProfile user={currentUser} onCancel={popPage} onSave={(u) => { setCurrentUser(u); popPage(); }} /> : null;
+              case 'edit-profile': return isLoggedIn && currentUser ? <EditProfile user={currentUser} onCancel={popPage} onSave={async (u) => { 
+                  // Save to database first
+                  await backend.user.updateProfile(u);
+                  // Then update local state
+                  setCurrentUser(u); 
+                  backend.auth.setUser(u);
+                  popPage(); 
+              }} /> : null;
               case 'settings': return isLoggedIn && currentUser ? <Settings user={currentUser} onBack={popPage} onLogout={handleLogout} isDataSaver={isDataSaver} onToggleDataSaver={() => setIsDataSaver(!isDataSaver)} /> : null;
               case 'qr-code': return <QRCodeCard user={page.user} onClose={popPage} />;
               case 'video-detail': return <VideoFeed type="custom" initialVideos={page.videos} initialIndex={page.initialIndex} onBack={popPage} onOpenComments={(id) => { setSheetData(id); setActiveSheet('comments'); }} onOpenShare={(v) => { setSheetData(v); setActiveSheet('share'); }} onOpenGift={() => setActiveSheet('gift')} onRequireAuth={handleRequireAuth} isLoggedIn={isLoggedIn} likedVideoIds={likedVideoIds} onToggleLike={handleToggleLike} followedUserIds={followedUserIds} onToggleFollow={handleToggleFollow} onNavigate={pushPage} isDataSaver={isDataSaver} onOpenLocation={(l) => { setSheetData(l); setActiveSheet('location'); }} isMuted={isMuted} onToggleMute={() => setIsMuted(!isMuted)} />;
