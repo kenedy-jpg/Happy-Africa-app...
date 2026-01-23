@@ -317,17 +317,15 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
          }
        });
        
-       // Don't wait - immediately show success and close UI
-       // Upload continues in background even if user navigates away
-       setMode('edit');
-       setIsUploadingNow(false);
-       
-       // Now wait for upload to complete (but UI is already closed)
+       // Show processing screen while upload happens in background
+       // Wait for upload to complete
        const result = await uploadPromise;
        
        if (result.success) {
          console.log('[Upload] ✅ Video uploaded successfully! ID:', result.postId);
          completeUpload(isDraft);
+         // ✅ CLOSE THE ENTIRE UPLOAD MODAL
+         onCancel();
        } else {
          // Upload failed - show error to user
          throw new Error(result.error || 'Upload failed');
