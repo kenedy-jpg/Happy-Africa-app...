@@ -101,6 +101,13 @@ export const VideoCard = memo<VideoCardProps>(({
     };
   }, [isActive, isFeedVisible, shouldLoad, currentVideoSrc, hasError, isSlideshow]);
 
+  // Sync mute state with video element
+  useEffect(() => {
+    if (videoRef.current && !isSlideshow) {
+      videoRef.current.muted = isMuted;
+    }
+  }, [isMuted, isSlideshow]);
+
   const handleContainerClick = (e: React.MouseEvent) => {
       const now = Date.now();
       const DOUBLE_TAP_DELAY = 300;
@@ -199,6 +206,25 @@ export const VideoCard = memo<VideoCardProps>(({
                 <Heart size={80} className="text-brand-pink fill-brand-pink drop-shadow-xl" />
             </div>
         ))}
+
+        {/* Mute Status Indicator (shown temporarily when toggled) */}
+        {showMuteStatus && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
+                <div className="bg-black/70 backdrop-blur-md rounded-full p-6 animate-fade-in">
+                    {isMuted ? <VolumeX size={48} className="text-white" /> : <Volume2 size={48} className="text-white" />}
+                </div>
+            </div>
+        )}
+
+        {/* Tap for Sound Indicator (shown when video is muted and active) */}
+        {isMuted && isActive && !showMuteStatus && (
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-40 animate-bounce pointer-events-none">
+                <div className="bg-black/70 backdrop-blur-md rounded-full px-4 py-2 flex items-center gap-2 border border-white/20">
+                    <VolumeX size={16} className="text-white" />
+                    <span className="text-white text-xs font-bold uppercase tracking-wide">Tap for Sound</span>
+                </div>
+            </div>
+        )}
 
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60 pointer-events-none"></div>
 

@@ -57,12 +57,33 @@ export const App: React.FC = () => {
   const [followedUserIds, setFollowedUserIds] = useState<Set<string>>(new Set());
   const [bookmarkedVideoIds, setBookmarkedVideoIds] = useState<Set<string>>(new Set());
   const [isDataSaver, setIsDataSaver] = useState(false);
-  const [isMuted, setIsMuted] = useState(false); // Videos play with sound by default (TikTok-style)
+  const [isMuted, setIsMuted] = useState(true); // Start muted for autoplay, will auto-unmute on first interaction
+  const [hasUserInteracted, setHasUserInteracted] = useState(false); // Track if user has interacted
   const [activeChatSessionId, setActiveChatSessionId] = useState<string | null>(null);
   const [showQAModal, setShowQAModal] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('signup');
   const [isOfflineMode, setIsOfflineMode] = useState(false);
+
+  // Auto-unmute on first user interaction (TikTok-style)
+  useEffect(() => {
+    const handleFirstInteraction = () => {
+      if (!hasUserInteracted) {
+        setHasUserInteracted(true);
+        setIsMuted(false); // Enable sound after first interaction
+        console.log('[Audio] Sound enabled after first interaction');
+      }
+    };
+
+    // Listen for any user interaction
+    document.addEventListener('touchstart', handleFirstInteraction, { once: true });
+    document.addEventListener('click', handleFirstInteraction, { once: true });
+
+    return () => {
+      document.removeEventListener('touchstart', handleFirstInteraction);
+      document.removeEventListener('click', handleFirstInteraction);
+    };
+  }, [hasUserInteracted]);
 
   // Integration: Session Debugging & Auth Listener
   useEffect(() => {
