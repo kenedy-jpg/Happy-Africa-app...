@@ -216,7 +216,7 @@ export const backend = {
             
             const userIds = Array.from(new Set(vData.map((v: any) => v.user_id))).filter(id => !!id);
             if (userIds.length === 0) {
-                return await Promise.all(vData.map(async (v: any) => {
+              return await Promise.all(vData.map(async (v: any) => {
                     let url = v.url || v.video_url || v.media_url;
                     // ✅ For posts table, use video_path field
                     if (v.video_path) {
@@ -244,7 +244,7 @@ export const backend = {
                         duration: v.duration || 60,
                         isLocal: false
                     };
-                });
+                    }));
             }
 
             const { data: pData, error: pError } = await supabase.from("profiles").select("*").in("id", userIds);
