@@ -33,21 +33,55 @@ export default async function handler(req: any, res: any) {
       process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || ""
     );
 
-    console.log("[API] 💾 Creating video record for:", videoPath);
+    console.log("[API] 💾 Updating video record with metadata:", videoPath);
 
-    // Insert video record into videos table (optimized - single query)
-    const { data: post, error } = await supabase
+    // First, try to find existing video record created by auto-save trigger
+    const { data: existingVideos, error: selectError } = await supabase
       .from("videos")
-      .insert({
-        user_id: userId,
-        url: videoPath,
-        media_url: videoPath,
-        description: description || "",
-        category: category || "comedy",
-        is_published: true
-      })
-      .select()
-      .single();
+      .select("id")
+      .eq("url", videoPath)
+      .limit(1);
+
+    let post;
+    let error;
+
+    if (existingVideos && existingVideos.length > 0) {
+      // Video record already exists from trigger - update with metadata
+      const videoId = existingVideos[0].id;
+      const { data: updated, error: updateError } = await supabase
+        .from("videos")
+        .update({
+          user_id: userId,
+          description: description || "",
+          category: category || "comedy",
+          is_published: true
+        })
+        .eq("id", videoId)
+        .select()
+        .single();
+      
+      post = updated;
+      error = updateError;
+      console.log("[API] ✅ Updated existing video record:", videoId);
+    } else {
+      // No trigger-created record found - create new one
+      const { data: created, error: insertError } = await supabase
+        .from("videos")
+        .insert({
+          user_id: userId,
+          url: videoPath,
+          media_url: videoPath,
+          description: description || "",
+          category: category || "comedy",
+          is_published: true
+        })
+        .select()
+        .single();
+      
+      post = created;
+      error = insertError;
+      console.log("[API] ✅ Created new video record");
+    }
 
     if (error) {
       console.error("[API] ❌ Error creating post:", error);
