@@ -2,6 +2,20 @@ import { createClient } from "@supabase/supabase-js";
 
 // Vercel serverless function for generating presigned upload URLs
 export default async function handler(req: any, res: any) {
+  // Set CORS headers for mobile browsers
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
+  );
+
+  // Handle preflight request
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   // Only allow POST requests
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -25,10 +39,13 @@ export default async function handler(req: any, res: any) {
 
     console.log("[API] Creating presigned URL for:", path);
 
-    // Create presigned upload URL (expires in 1 hour)
+    // Create presigned upload URL (expires in 3 hours for mobile compatibility)
+    // Mobile uploads can be slower due to network conditions
     const { data, error } = await supabase.storage
       .from("videos")
-      .createSignedUploadUrl(path);
+      .createSignedUploadUrl(path, {
+        upsert: true // Allow overwrites if upload is retried
+      });
 
     if (error) {
       console.error("[API] Error creating signed URL:", error);

@@ -203,26 +203,28 @@ async function uploadWithProgress(
     // Open and send request
     xhr.open('PUT', signedUrl);
     
-    // Set timeout (5 minutes for faster failure detection)
-    xhr.timeout = 300000; // 5 minutes
+    // Set timeout (10 minutes for slower mobile connections)
+    xhr.timeout = 600000; // 10 minutes for mobile
     
     xhr.addEventListener('timeout', () => {
       console.error('[UploadService] XHR timeout');
-      resolve({ success: false, error: 'Upload timed out after 10 minutes' });
+      resolve({ success: false, error: 'Upload timed out. Please check your connection and try again.' });
     });
     
-    // Set headers - CRITICAL: Only set Content-Type, don't add Authorization
-    xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
+    // Set headers - CRITICAL: Let browser set Content-Type automatically for mobile compatibility
+    // Mobile browsers (especially iOS Safari) need to set the Content-Type themselves
+    // to include proper boundary parameters for multipart uploads
+    if (file.type && file.type.startsWith('video/')) {
+      xhr.setRequestHeader('Content-Type', file.type);
+    }
+    // DO NOT set Authorization header - presigned URL already has auth in query params
     
     console.log('[UploadService] Sending file via XHR PUT...', {
       url: signedUrl.substring(0, 100) + '...',
       size: file.size,
-      type: file.type
+      type: file.type,
+      isMobile: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
     });
-    
-    // Note: Some Supabase configurations may require the token in x-upsert header
-    // Uncomment if your setup requires it:
-    // xhr.setRequestHeader('x-upsert', 'true');
     
     xhr.send(file);
   });

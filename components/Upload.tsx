@@ -355,22 +355,32 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
        let errorTitle = 'Upload Error';
        let errorMessage = '';
 
-       // Check for common issues
+       // Check for common issues with mobile-friendly messages
        if (!error?.code && !error?.status) {
          // Network/connection issue
          errorTitle = 'Connection Error';
-         errorMessage = `Unable to connect to the server. This could be because:\n\n1. Your internet connection is down\n2. Supabase configuration is missing or incorrect\n3. The Supabase project is offline\n\n📋 Quick Fix:\n• Check .env file has correct VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY\n• Restart your development server (npm run dev)\n• Verify you're logged in\n\nSee UPLOAD_FIX_GUIDE.md for detailed instructions.`;
+         errorMessage = `Unable to connect. Please check:\n\n• Your internet connection\n• Try switching between WiFi/mobile data\n• Wait and try again in a moment\n\nIf this persists, the server may be temporarily unavailable.`;
        } else if (diagnostic && !diagnostic.isAuthenticated) {
-         errorTitle = 'Authentication Required';
-         errorMessage = 'Please log out and log back in, then try uploading again.';
+         errorTitle = 'Please Log In Again';
+         errorMessage = 'Your session may have expired. Please log out and log back in, then try uploading again.';
+       } else if (error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError')) {
+         errorTitle = 'Network Error';
+         errorMessage = `Upload failed due to network issues.\n\n📱 Mobile users: Try:\n• Switching between WiFi and mobile data\n• Moving to an area with better signal\n• Waiting for a more stable connection\n• Reducing video quality if possible`;
+       } else if (error?.message?.includes('timeout') || error?.message?.includes('ETIMEDOUT')) {
+         errorTitle = 'Upload Timeout';
+         errorMessage = `The upload took too long. This can happen on slower connections.\n\nTry:\n• Using a faster WiFi connection\n• Compressing your video first\n• Uploading a shorter video`;
        } else if (diagnostic && !diagnostic.canInsertVideos) {
-         errorTitle = 'Database Permission Error';
-         errorMessage = `Your video cannot be saved due to database permissions.\n\n📋 To fix this:\n1. Go to your Supabase dashboard\n2. Open SQL Editor\n3. Run the script from FIX_RLS_POLICIES.sql\n\nError Details:\nCode: ${error?.code || 'N/A'}\nStatus: ${error?.status || 'N/A'}`;
+         errorTitle = 'Permission Error';
+         errorMessage = `Cannot save video due to permissions.\n\nPlease contact support or try logging in again.`;
        } else {
          // Generic error with diagnostic info
          const userMessage = diagnostic ? uploadDiagnostics.getUserMessage(diagnostic) : null;
          errorMessage = userMessage || error?.message || 'Failed to upload video. Please try again.';
-         errorMessage += `\n\nError Details:\nCode: ${error?.code || 'N/A'}\nStatus: ${error?.status || 'N/A'}\n\nIf this persists, check UPLOAD_FIX_GUIDE.md`;
+         
+         // Add mobile-specific tips for generic errors
+         if (/mobile/i.test(navigator.userAgent)) {
+           errorMessage += `\n\n📱 Mobile Tip: Try using WiFi instead of mobile data, or compress your video before uploading.`;
+         }
        }
 
        setErrorModal({ title: errorTitle, message: errorMessage });
