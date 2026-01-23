@@ -37,15 +37,20 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({
           <Radio size={18} />
         </button>
 
-        <div className="flex items-center gap-3 pointer-events-auto">
+        <div className="flex items-center gap-1 pointer-events-auto bg-black/40 backdrop-blur-sm rounded-full px-2 py-1 border-2 border-[#FFD700] shadow-[0_0_15px_rgba(255,215,0,0.5)]">
           {tabs.map((tab) => (
-            <button key={tab.id} onClick={() => onFeedChange(tab.id)} className="relative py-2 flex flex-col items-center group">
-              <span className={`text-[11px] font-black transition-all duration-200 drop-shadow-md ${activeFeed === tab.id ? 'text-brand-pink scale-110' : 'text-white/60 hover:text-white'}`}>
+            <button 
+              key={tab.id} 
+              onClick={() => onFeedChange(tab.id)} 
+              className={`relative px-3 py-1.5 rounded-full transition-all duration-200 ${
+                activeFeed === tab.id 
+                  ? 'bg-[#FFD700] text-black shadow-[0_0_12px_rgba(255,215,0,0.8)]' 
+                  : 'text-[#FFD700] hover:bg-[#FFD700]/10'
+              }`}
+            >
+              <span className="text-[10px] font-black whitespace-nowrap">
                 {tab.label}
               </span>
-              {activeFeed === tab.id && (
-                <div className="absolute bottom-0 w-5 h-0.5 rounded-full bg-brand-pink shadow-[0_0_8px_rgba(255,79,154,0.8)] transition-all duration-300" />
-              )}
             </button>
           ))}
         </div>
