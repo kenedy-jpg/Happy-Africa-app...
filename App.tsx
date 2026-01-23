@@ -226,31 +226,28 @@ export const App: React.FC = () => {
         return;
     }
     try {
-        // ✅ SHOW IMMEDIATELY in feed and profile
-        injectVideo({ ...newVideo, isLocal: true });
-        setMyVideos(prev => [{ ...newVideo, isLocal: true }, ...prev]);
-        setActiveTab('profile');
+        // ✅ Video has already been uploaded by Upload component
+        // Just refresh feed to show the new video from database
+        console.log('[App] Video uploaded successfully, refreshing feed');
         
-        // ✅ Show success message immediately
-        setActiveToast({ user: 'System', avatar: '', text: '✅ Video Posted! 🌍', type: 'system' });
-
-        // Upload in background (non-blocking) - don't wait for it
-        if (file && currentUser) {
-            backend.content.uploadVideo(file, newVideo.description, newVideo.poster, newVideo.duration)
-              .then(() => {
-                console.log('[Upload] Background upload complete');
-                syncUserState(currentUser.id); // Sync after upload
-              })
-              .catch((error: any) => {
-                console.error('[Upload] Background upload error:', error);
-                setActiveToast({ user: 'System', avatar: '', text: `Sync warning: ${error.message}`, type: 'error' });
-              });
+        // Show success message
+        setActiveToast({ user: 'System', avatar: '', text: '✅ Video Posted Successfully! 🌍', type: 'system' });
+        
+        // Small delay to ensure database transaction is committed
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Refresh feed to fetch new video from database
+        setFeedRefreshTrigger(prev => prev + 1);
+        
+        // Sync user videos to update profile
+        if (currentUser) {
+          syncUserState(currentUser.id);
         }
         
-        // Refresh feed immediately to show new post
-        setFeedRefreshTrigger(prev => prev + 1);
+        // Navigate to home to see the new video in feed
+        setActiveTab('home');
     } catch (e: any) { 
-        setActiveToast({ user: 'System', avatar: '', text: `Upload failed: ${e.message}`, type: 'error' }); 
+        setActiveToast({ user: 'System', avatar: '', text: `Error: ${e.message}`, type: 'error' }); 
     }
   };
 

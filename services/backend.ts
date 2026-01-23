@@ -231,12 +231,24 @@ export const backend = {
                     url = await this.getSignedUrl(path);
                 }
                 const durationVal = v.duration ? parseFloat(v.duration) : 15;
-                const userProfile = mapProfileToUser(profileMap.get(v.user_id), v.user_id);
                 
-                // Skip videos with missing user profile data
+                // ✅ FIXED: Don't skip videos if profile is missing - create fallback user
+                // This ensures newly uploaded videos appear even if profile hasn't synced yet
+                let userProfile = mapProfileToUser(profileMap.get(v.user_id), v.user_id);
+                
                 if (!userProfile) {
-                    console.warn(`[Backend] Skipping video ${v.id} - no user profile`);
-                    return null;
+                    console.warn(`[Backend] No profile found for video ${v.id}, using fallback user`);
+                    // Create fallback user so video still shows
+                    userProfile = {
+                        id: v.user_id,
+                        username: 'user_' + v.user_id.slice(0, 8),
+                        displayName: 'Happy Africa User',
+                        avatarUrl: `https://ui-avatars.com/api/?name=User&background=random`,
+                        followers: 0,
+                        following: 0,
+                        likes: 0,
+                        coins: 0
+                    };
                 }
                 
                 return {
@@ -255,7 +267,7 @@ export const backend = {
                     duration: isNaN(durationVal) || durationVal <= 0 ? 60 : durationVal,
                     isLocal: false
                 };
-            })).then(videos => videos.filter(v => v !== null));
+            }));
         } catch (e: any) { 
             console.error("[Backend] Supabase fetch error:", e?.message || e);
             throw e; 

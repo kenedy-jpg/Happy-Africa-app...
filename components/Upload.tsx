@@ -301,12 +301,9 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
      setProcessStep(0);
      
      try {
-       // ✅ POST IMMEDIATELY - Don't wait for upload to complete
-       // Call completeUpload first to show post immediately in feed
-       completeUpload(isDraft);
-       
-       // Then upload in background (non-blocking)
-       backend.content.uploadVideo(
+       // ✅ FIXED: Wait for upload to complete BEFORE calling completeUpload
+       // This ensures the video is saved to database and will persist after refresh
+       await backend.content.uploadVideo(
          selectedFile, 
          description, 
          generatedThumbnail, 
@@ -317,9 +314,12 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
            const progressStep = Math.floor((progress / 100) * PROCESS_STEPS.length);
            setProcessStep(Math.min(progressStep, PROCESS_STEPS.length - 1));
          }
-       ).catch((error: any) => {
-         console.error('[Upload] Background upload error:', error?.message);
-       });
+       );
+       
+       // ✅ Only after successful upload, call completeUpload to update UI
+       console.log('[Upload] Video uploaded successfully, updating UI');
+       completeUpload(isDraft);
+       
      } catch (error: any) {
        console.error('Upload error details:', {
          message: error?.message,
