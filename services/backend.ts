@@ -193,8 +193,8 @@ export const backend = {
 
     async fetchVideosSafe(queryModifier: (query: any) => any): Promise<Video[]> {
         try {
-            // ✅ Query posts table instead of videos table for consistency
-            const { data: vData, error: vError } = await queryModifier(supabase.from("posts").select("*, profiles!posts_user_id_fkey(id, username, full_name, avatar_url)"));
+            // ✅ Query videos table to fetch all user-uploaded videos
+            const { data: vData, error: vError } = await queryModifier(supabase.from("videos").select("*, profiles!videos_user_id_fkey(id, username, full_name, avatar_url)"));
             if (vError) throw vError;
             if (!vData || vData.length === 0) return [];
             
@@ -202,9 +202,9 @@ export const backend = {
             if (userIds.length === 0) {
               return await Promise.all(vData.map(async (v: any) => {
                     let url = v.url || v.video_url || v.media_url;
-                    // ✅ For posts table, use video_path field
+                    // ✅ For videos table, use video_path field if available
                     if (v.video_path) {
-                        const { data } = supabase.storage.from('videos').getPublicUrl(v.video_path);
+                        const { data } = supabase.storage.from('posts').getPublicUrl(v.video_path);
                         url = data.publicUrl;
                     } else if (v.file_path) {
                         url = await this.getSignedUrl(v.file_path);
@@ -235,15 +235,15 @@ export const backend = {
             const profileMap = new Map(pData?.map(p => [p.id, p]) || []);
             
             return vData.map((v: any) => {
-                // ✅ For posts table: prioritize video_path field
-                let url = v.video_url || v.url || v.media_url;
+                // ✅ For videos table: use url field directly
+                let url = v.url || v.video_url || v.media_url;
                 
-                // If we have video_path, construct public URL directly
+                // If we have video_path, construct public URL directly (for newer uploads)
                 if (v.video_path) {
-                    const { data } = supabase.storage.from('videos').getPublicUrl(v.video_path);
+                    const { data } = supabase.storage.from('posts').getPublicUrl(v.video_path);
                     url = data.publicUrl;
                 } else if (!url && v.file_path) {
-                    const { data } = supabase.storage.from('videos').getPublicUrl(v.file_path);
+                    const { data } = supabase.storage.from('posts').getPublicUrl(v.file_path);
                     url = data.publicUrl;
                 }
                 
