@@ -216,20 +216,22 @@ export const backend = {
                         duration: v.duration || 60,
                         isLocal: false
                     };
-                }));
+                });
             }
 
             const { data: pData, error: pError } = await supabase.from("profiles").select("*").in("id", userIds);
             const profileMap = new Map(pData?.map(p => [p.id, p]) || []);
             
-            return await Promise.all(vData.map(async (v: any) => {
-                let url = v.url || v.video_url || v.media_url;
-                if (v.file_path) {
-                    url = await this.getSignedUrl(v.file_path);
-                } else if (v.url && (v.url.includes('/public/videos/') || !v.url.startsWith('http'))) {
-                    const path = decodeURIComponent(v.url.includes('/public/videos/') ? v.url.split('/public/videos/')[1] : v.url);
-                    url = await this.getSignedUrl(path);
+            return vData.map((v: any) => {
+                // ✅ Use public URL directly for faster loading (no signed URL needed)
+                let url = v.video_url || v.url || v.media_url;
+                
+                // If we only have file_path, construct public URL directly
+                if (!url && v.file_path) {
+                    const { data } = supabase.storage.from('videos').getPublicUrl(v.file_path);
+                    url = data.publicUrl;
                 }
+                
                 const durationVal = v.duration ? parseFloat(v.duration) : 15;
                 
                 // ✅ FIXED: Don't skip videos if profile is missing - create fallback user
@@ -267,13 +269,13 @@ export const backend = {
                     duration: isNaN(durationVal) || durationVal <= 0 ? 60 : durationVal,
                     isLocal: false
                 };
-            }));
+            });
         } catch (e: any) { 
             console.error("[Backend] Supabase fetch error:", e?.message || e);
             throw e; 
         }
     },
-    async getFeed(type: string, page: number = 0, pageSize: number = 20): Promise<Video[]> {
+    async getFeed(type: string, page: number = 0, pageSize: number = 10): Promise<Video[]> {
         try {
             const from = page * pageSize;
             const to = from + pageSize - 1;

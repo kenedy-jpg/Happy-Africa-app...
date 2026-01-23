@@ -61,7 +61,7 @@ export const VideoFeed: React.FC<VideoFeedProps> = ({
   const observerRef = useRef<IntersectionObserver | null>(null);
   const [videos, setVideos] = useState<Video[]>(initialVideos || []);
   const [activeIndex, setActiveIndex] = useState(initialIndex);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(initialVideos ? false : true); // Start as loading if no initial videos
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isPending, startTransition] = useTransition();
   const isFirstRun = useRef(true);
@@ -81,8 +81,8 @@ export const VideoFeed: React.FC<VideoFeedProps> = ({
     }
     
     try {
-        // Fetch 20 videos per page for optimal performance
-        const feedData = await backend.content.getFeed(type as FeedType, pageNum * 20, 20);
+        // Fetch 10 videos per page for faster initial load
+        const feedData = await backend.content.getFeed(type as FeedType, pageNum, 10);
         
         if (!feedData || feedData.length === 0) {
             console.warn("[Feed] No more videos available");
@@ -98,8 +98,8 @@ export const VideoFeed: React.FC<VideoFeedProps> = ({
           setVideos(feedData);
         }
         
-        // If we got less than 20 videos, we've reached the end
-        if (feedData.length < 20) {
+        // If we got less than 10 videos, we've reached the end
+        if (feedData.length < 10) {
           setHasMore(false);
         }
     } catch (e: any) {
@@ -136,6 +136,10 @@ export const VideoFeed: React.FC<VideoFeedProps> = ({
   };
 
   useEffect(() => {
+    // Reset cache and page on refresh/type change
+    loadedPagesRef.current.clear();
+    setPage(0);
+    setHasMore(true);
     loadVideos();
   }, [type, refreshTrigger]);
 

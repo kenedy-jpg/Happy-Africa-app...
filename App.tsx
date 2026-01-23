@@ -233,10 +233,7 @@ export const App: React.FC = () => {
         // Show success message
         setActiveToast({ user: 'System', avatar: '', text: '✅ Video Posted Successfully! 🌍', type: 'system' });
         
-        // Small delay to ensure database transaction is committed
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Refresh feed to fetch new video from database
+        // Refresh feed immediately to fetch new video from database
         setFeedRefreshTrigger(prev => prev + 1);
         
         // Sync user videos to update profile
