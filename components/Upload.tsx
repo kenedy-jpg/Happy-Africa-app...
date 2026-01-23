@@ -282,7 +282,7 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
   };
 
   const handlePost = async (isDraft: boolean = false) => {
-     console.log('[Upload] POST clicked - FAST UPLOAD MODE', { hasFile: !!selectedFile });
+     console.log('[Upload] ⚡ INSTANT UPLOAD STARTED', { hasFile: !!selectedFile, device: navigator.userAgent.includes('Mobile') ? 'MOBILE' : 'DESKTOP' });
      
      if (!selectedFile) {
        console.error('[Upload] No file selected');
@@ -290,49 +290,51 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
        return;
      }
      
-     // ⚡ Fast upload: Start immediately without waiting for metadata
+     // ⚡ INSTANT UPLOAD: Start immediately without ANY delays
      setIsUploadingNow(true);
      setMode('processing'); 
      setProcessStep(0);
      setUploadProgress(0);
      
      try {
-       // ✅ FIXED: Use postUploadService to save to posts table for consistency
-       // This ensures ALL users' videos are saved and persist after refresh
+       // ✅ Get current user (should be cached - instant)
        const user = await backend.auth.getCurrentUserAsync();
        if (!user) {
          throw new Error('You must be logged in to upload videos');
        }
        
-       // ⚡ Start upload immediately - don't wait for metadata
-       const result = await uploadVideoAndCreatePost(selectedFile, {
+       // ⚡ CRITICAL: Skip ALL validation and metadata extraction
+       // Upload file immediately in background
+       const uploadPromise = uploadVideoAndCreatePost(selectedFile, {
          userId: user.id,
          description: description || 'Posted from Happy Africa',
          category: category,
          visibility: visibility || 'public',
          onProgress: (progress) => {
-           // Track real upload progress (0-100)
            setUploadProgress(progress);
            const progressStep = Math.floor((progress / 100) * PROCESS_STEPS.length);
            setProcessStep(Math.min(progressStep, PROCESS_STEPS.length - 1));
          }
        });
        
-       if (!result.success) {
+       // Don't wait - immediately show success and close UI
+       // Upload continues in background even if user navigates away
+       setMode('edit');
+       setIsUploadingNow(false);
+       
+       // Now wait for upload to complete (but UI is already closed)
+       const result = await uploadPromise;
+       
+       if (result.success) {
+         console.log('[Upload] ✅ Video uploaded successfully! ID:', result.postId);
+         completeUpload(isDraft);
+       } else {
+         // Upload failed - show error to user
          throw new Error(result.error || 'Upload failed');
        }
        
-       // ✅ Only after successful upload, call completeUpload to update UI
-       console.log('[Upload] Video uploaded successfully to posts table, ID:', result.postId);
-       completeUpload(isDraft);
-       
      } catch (error: any) {
-       console.error('Upload error details:', {
-         message: error?.message,
-         code: error?.code,
-         status: error?.status,
-         fullError: error
-       });
+       setIsUploadingNow(false);
 
        // Check if this is a fallback save (video saved locally)
        const isFallbackSave = error?.message?.includes('saved locally as backup') || 
