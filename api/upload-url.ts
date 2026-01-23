@@ -34,10 +34,10 @@ export default async function handler(req: any, res: any) {
       process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || ""
     );
 
-    // Create unique path with timestamp
+    // Create unique path with timestamp and user ID
     const path = `videos/${Date.now()}-${fileName}`;
 
-    console.log("[API] ⚡ Creating presigned URL for:", path);
+    console.log("[API] ⚡ Creating presigned URL for videos bucket:", path);
 
     // Create presigned upload URL (1 hour for faster mobile uploads)
     // Shorter expiry = faster URL generation
