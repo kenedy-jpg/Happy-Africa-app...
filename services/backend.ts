@@ -261,31 +261,35 @@ export const backend = {
             throw e; 
         }
     },
-    async getFeed(type: string, page: number = 0, pageSize: number = 5): Promise<Video[]> {
+    async getFeed(type: string, page: number = 0, pageSize: number = 20): Promise<Video[]> {
         try {
             const from = page * pageSize;
             const to = from + pageSize - 1;
             
-            // Fetch all videos from database (not filtered by user)
-            // This ensures all users can see each other's posts
+            console.log(`[Backend] Fetching feed page ${page}, range ${from}-${to}`);
+            
+            // ✅ Fetch ALL published videos from database (public feed like TikTok)
+            // This ensures EVERYONE can see EVERYONE's videos
             const liveVideos = await backend.content.fetchVideosSafe((q: any) => 
                 q.eq('is_published', true)  // Only show published videos
                  .order("created_at", { ascending: false })
                  .range(from, to)
             );
             
-            if (page === 0) {
-                // Mix with local/temporary videos but prioritize database videos
-                const localDB = getLocalDatabase().filter(v => !!v.url);
-                const dbIds = new Set(liveVideos.map(v => v.id));
-                const uniqueLocals = localDB.filter(l => !dbIds.has(l.id));
-                const merged = [...liveVideos, ...uniqueLocals];
-                return merged.length === 0 ? STARTER_VIBES : merged;
+            console.log(`[Backend] Fetched ${liveVideos.length} videos from database`);
+            
+            // For first page, show starter content if no videos exist yet
+            if (page === 0 && liveVideos.length === 0) {
+                console.log('[Backend] No videos in database, showing starter content');
+                return STARTER_VIBES;
             }
+            
+            // Return database videos (they persist after refresh)
             return liveVideos;
         } catch (e: any) { 
             console.error("[Backend] getFeed failed:", e?.message || e);
-            return page === 0 ? getLocalDatabase().filter(v => !!v.url) : [];
+            // Only show starter content on error for first page
+            return page === 0 ? STARTER_VIBES : [];
         }
     },
     async getMyVideos(userId: string): Promise<Video[]> {
@@ -381,10 +385,12 @@ export const backend = {
           poster_url: videoRecord.poster_url ? '[base64...]' : null
         });
 
+        // ✅ Insert video into database - this makes it persistent and visible to all users
         const { data: insertData, error: insertError } = await supabase
           .from("videos")
           .insert(videoRecord)
-          .select();
+          .select()
+          .single();
 
         if (insertError) {
           console.error('[Upload] Database insert error details:', {
@@ -435,7 +441,12 @@ export const backend = {
           }
         }
 
-        console.log('[Upload] Video successfully saved to database:', insertData);
+        console.log('[Upload] ✅ Video successfully saved to database:', insertData);
+        
+        // Invalidate feed cache so new video appears immediately
+        performanceCache.invalidatePattern('feed:.*');
+        performanceCache.invalidate(`user:${user.id}:videos`);
+        
         onProgress?.(100); // Complete
       } catch (e: any) {
         console.error('[Upload] Final error:', e);
