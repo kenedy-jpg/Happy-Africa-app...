@@ -2,6 +2,8 @@ import { supabase, setSupabaseToken } from './supabaseClient';
 import { User, Video, Comment, ChatSession, Message, LiveStream, Product, MusicTrack, Collection } from '../types';
 import { MOCK_PRODUCTS, MOCK_USERS } from '../constants';
 import { getLocalDatabase, getPersistentUserPosts } from './recommendationEngine';
+import { performanceCache, requestDeduplicator } from './performanceCache';
+import { canPerformAction, ExponentialBackoff } from './rateLimiter';
 
 let _cachedUser: User | null = null;
 
@@ -73,11 +75,22 @@ export const backend = {
     },
     async getProfile(userId: string): Promise<User | null> {
         try {
-            const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
-            if (error) throw error;
-            const user = mapProfileToUser(data, userId);
-            if (!user) throw new Error('Profile incomplete - real name required');
-            return user;
+            // Check cache first
+            const cacheKey = `profile:${userId}`;
+            const cached = performanceCache.get<User>(cacheKey);
+            if (cached) return cached;
+            
+            // Deduplicate concurrent requests
+            return await requestDeduplicator.dedupe(cacheKey, async () => {
+                const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
+                if (error) throw error;
+                const user = mapProfileToUser(data, userId);
+                if (!user) throw new Error('Profile incomplete - real name required');
+                
+                // Cache for 5 minutes
+                performanceCache.set(cacheKey, user, 5 * 60 * 1000);
+                return user;
+            });
         } catch (e) { 
             console.error('Failed to load user profile:', e);
             return null; 

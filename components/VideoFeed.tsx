@@ -65,19 +65,43 @@ export const VideoFeed: React.FC<VideoFeedProps> = ({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isPending, startTransition] = useTransition();
   const isFirstRun = useRef(true);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const loadedPagesRef = useRef(new Set<number>());
 
-  const loadVideos = async () => {
+  const loadVideos = async (pageNum: number = 0, append: boolean = false) => {
     if (type === 'custom') return;
+    if (loadedPagesRef.current.has(pageNum)) return;
     
-    setLoading(true);
+    if (append) {
+      setIsLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
+    
     try {
-        const feedData = await backend.content.getFeed(type as FeedType, 0, 20);
+        // Fetch 20 videos per page for optimal performance
+        const feedData = await backend.content.getFeed(type as FeedType, pageNum * 20, 20);
         
         if (!feedData || feedData.length === 0) {
-            console.warn("[Feed] No videos returned from backend.");
+            console.warn("[Feed] No more videos available");
+            setHasMore(false);
+            return;
         }
 
-        setVideos(feedData);
+        loadedPagesRef.current.add(pageNum);
+        
+        if (append) {
+          setVideos(prev => [...prev, ...feedData]);
+        } else {
+          setVideos(feedData);
+        }
+        
+        // If we got less than 20 videos, we've reached the end
+        if (feedData.length < 20) {
+          setHasMore(false);
+        }
     } catch (e: any) {
         // Log the actual object for DevTools inspection
         console.error("[Feed] DB Load Error Context:", e);
@@ -100,7 +124,15 @@ export const VideoFeed: React.FC<VideoFeedProps> = ({
     } finally {
         setLoading(false);
         setIsRefreshing(false);
+        setIsLoadingMore(false);
     }
+  };
+  
+  const loadMoreVideos = async () => {
+    if (isLoadingMore || !hasMore || type === 'custom') return;
+    const nextPage = page + 1;
+    setPage(nextPage);
+    await loadVideos(nextPage, true);
   };
 
   useEffect(() => {
@@ -128,10 +160,11 @@ export const VideoFeed: React.FC<VideoFeedProps> = ({
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
       const target = e.currentTarget;
-      const isAtBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 100;
+      const isAtBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 300;
       
-      if (isAtBottom && !loading && type !== 'custom') {
-          // Pagination can be implemented here
+      // Preload next page when user is near the bottom
+      if (isAtBottom && !loading && !isLoadingMore && hasMore && type !== 'custom') {
+          loadMoreVideos();
       }
   };
 
