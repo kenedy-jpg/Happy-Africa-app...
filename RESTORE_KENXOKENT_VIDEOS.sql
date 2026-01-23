@@ -56,27 +56,27 @@ BEGIN
     END LOOP;
 END $$;
 
--- STEP 8: Create NEW policies - FIXED for anonymous access
--- ✅ CRITICAL: Anonymous users CAN VIEW all public posts
-CREATE POLICY "anon_can_view_public_posts"
+-- STEP 8: Create NEW policies - NO VISIBILITY RESTRICTIONS
+-- ✅ CRITICAL: Anonymous users CAN VIEW ALL posts (no visibility filter)
+CREATE POLICY "anon_can_view_all_posts"
 ON posts
 FOR SELECT
 TO anon
-USING (visibility = 'public');
+USING (true);  -- Show ALL posts to match kenxokent pattern
 
--- ✅ Authenticated users can VIEW all public posts
-CREATE POLICY "auth_can_view_public_posts"
+-- ✅ Authenticated users can VIEW ALL posts (no visibility filter)
+CREATE POLICY "auth_can_view_all_posts"
 ON posts
 FOR SELECT
 TO authenticated
-USING (visibility = 'public');
+USING (true);  -- Show ALL posts to match kenxokent pattern
 
 -- ✅ Authenticated users can INSERT their own posts
 CREATE POLICY "authenticated_users_can_create_posts"
 ON posts
 FOR INSERT
 TO authenticated
-WITH CHECK (auth.uid() = user_id AND visibility = 'public');
+WITH CHECK (auth.uid() = user_id);
 
 -- ✅ Users can UPDATE their own posts
 CREATE POLICY "users_can_update_own_posts"

@@ -87,13 +87,13 @@ END $$;
 
 -- STEP 6: Create NEW policies for TikTok-style public feed (exactly like kenxokent account)
 
--- ✅ CRITICAL: Everyone can VIEW all public posts (including anonymous users)
--- This is what makes videos appear in the feed for ALL users
-CREATE POLICY "everyone_can_view_public_posts"
+-- ✅ CRITICAL: Everyone can VIEW ALL posts (including anonymous users)
+-- NO visibility restrictions to match kenxokent's working pattern
+CREATE POLICY "everyone_can_view_all_posts"
 ON posts
 FOR SELECT
 TO public
-USING (visibility = 'public');
+USING (true);  -- Show ALL videos regardless of visibility
 
 -- ✅ Authenticated users can INSERT their own posts
 CREATE POLICY "authenticated_users_can_create_posts"

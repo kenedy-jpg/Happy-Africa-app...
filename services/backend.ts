@@ -313,11 +313,10 @@ export const backend = {
             
             console.log(`[Backend] Fetching feed page ${page}, range ${from}-${to}`);
             
-            // ✅ Fetch ALL public posts from database (public feed like TikTok)
-            // This ensures EVERYONE can see EVERYONE's videos
+            // ✅ Fetch ALL posts from database (NO visibility filter)
+            // This matches kenxokent's pattern - all videos visible after refresh
             const liveVideos = await backend.content.fetchVideosSafe((q: any) => 
-                q.eq('visibility', 'public')  // Only show public posts
-                 .order("created_at", { ascending: false })
+                q.order("created_at", { ascending: false })
                  .range(from, to)
             );
             
