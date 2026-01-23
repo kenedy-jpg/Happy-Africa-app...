@@ -71,11 +71,28 @@ export const backend = {
     getCurrentUser(): User | null { return _cachedUser; },
     setUser(user: User | null) {
         _cachedUser = user;
-        if (user) localStorage.setItem('ha_last_user_id', user.id);
+        if (user) {
+            localStorage.setItem('ha_last_user_id', user.id);
+            // Cache full profile data including avatar for refresh persistence
+            localStorage.setItem('ha_cached_profile', JSON.stringify(user));
+        } else {
+            localStorage.removeItem('ha_cached_profile');
+        }
     },
     async getProfile(userId: string): Promise<User | null> {
         try {
-            // Check cache first
+            // Check localStorage cache first for faster refresh
+            const localCache = localStorage.getItem('ha_cached_profile');
+            if (localCache) {
+                const cachedUser = JSON.parse(localCache);
+                if (cachedUser.id === userId) {
+                    console.log('[Profile] Using cached profile from localStorage');
+                    _cachedUser = cachedUser;
+                    return cachedUser;
+                }
+            }
+
+            // Check memory cache
             const cacheKey = `profile:${userId}`;
             const cached = performanceCache.get<User>(cacheKey);
             if (cached) return cached;
@@ -135,13 +152,17 @@ export const backend = {
             throw new Error('Username is required');
         }
         
+        // Generate avatar URL
+        const avatarUrl = userData.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.fullName)}&background=random`;
+        
         const { data, error } = await supabase.auth.signUp({
             email: userData.email,
             password: password,
             options: { 
                 data: { 
                     username: userData.username,
-                    full_name: userData.fullName
+                    full_name: userData.fullName,
+                    avatar_url: avatarUrl
                 } 
             }
         });
@@ -151,9 +172,11 @@ export const backend = {
             id: data.user?.id, 
             ...userData,
             full_name: userData.fullName,
+            avatar_url: avatarUrl,
             user_metadata: {
                 username: userData.username,
-                full_name: userData.fullName
+                full_name: userData.fullName,
+                avatar_url: avatarUrl
             }
         });
         
