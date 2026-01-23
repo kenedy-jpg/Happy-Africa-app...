@@ -323,17 +323,19 @@ export const backend = {
             
             console.log(`[Backend] Fetched ${liveVideos.length} videos from database`);
             
-            // For first page, show starter content if no videos exist yet
-            if (page === 0 && liveVideos.length === 0) {
-                console.log('[Backend] No videos in database, showing starter content');
-                return STARTER_VIBES;
+            // Combine with starter content for first page
+            if (page === 0) {
+                // Always show starter content on first page PLUS database videos
+                // This ensures users always see something while also showing real uploads
+                const combined = [...liveVideos, ...STARTER_VIBES];
+                return combined.slice(0, pageSize); // Trim to pageSize
             }
             
             // Return database videos (they persist after refresh)
             return liveVideos;
         } catch (e: any) { 
             console.error("[Backend] getFeed failed:", e?.message || e);
-            // Only show starter content on error for first page
+            // On error, return starter content to ensure UX doesn't break
             return page === 0 ? STARTER_VIBES : [];
         }
     },
