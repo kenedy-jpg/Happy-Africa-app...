@@ -57,7 +57,7 @@ export const App: React.FC = () => {
   const [followedUserIds, setFollowedUserIds] = useState<Set<string>>(new Set());
   const [bookmarkedVideoIds, setBookmarkedVideoIds] = useState<Set<string>>(new Set());
   const [isDataSaver, setIsDataSaver] = useState(false);
-  const [isMuted, setIsMuted] = useState(true); 
+  const [isMuted, setIsMuted] = useState(false); // Videos play with sound by default (TikTok-style)
   const [activeChatSessionId, setActiveChatSessionId] = useState<string | null>(null);
   const [showQAModal, setShowQAModal] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
