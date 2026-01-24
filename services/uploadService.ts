@@ -211,13 +211,11 @@ async function uploadWithProgress(
       resolve({ success: false, error: 'Upload timed out. Please check your connection and try again.' });
     });
     
-    // Set headers - CRITICAL: Let browser set Content-Type automatically for mobile compatibility
-    // Mobile browsers (especially iOS Safari) need to set the Content-Type themselves
-    // to include proper boundary parameters for multipart uploads
+    // Set headers - include token required by Supabase signed upload URLs
     if (file.type && file.type.startsWith('video/')) {
       xhr.setRequestHeader('Content-Type', file.type);
     }
-    // DO NOT set Authorization header - presigned URL already has auth in query params
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
     
     console.log('[UploadService] Sending file via XHR PUT...', {
       url: signedUrl.substring(0, 100) + '...',

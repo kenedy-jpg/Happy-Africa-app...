@@ -242,6 +242,7 @@ async function uploadFileToPresignedUrl(
     // Open and configure XHR for optimal performance
     xhr.open('PUT', signedUrl);
     xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
     xhr.timeout = TIMEOUT_MS;
     
     // Mobile optimization: disable buffering for faster uploads
