@@ -84,52 +84,41 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
   }, [creationContext]);
 
   /**
-   * ROBUST DURATION EXTRACTION
-   * Blocks post button until actual duration is measured.
-   * Enhanced for mobile compatibility.
+   * FAST DURATION EXTRACTION
+   * Extracts duration without blocking upload or post button.
+   * Mobile optimized with fallback defaults.
    */
   const extractMetadata = (url: string) => {
-    setIsMetadataReady(false);
-    const video = document.createElement('video');
-    video.preload = 'metadata';
-    video.playsInline = true; // Mobile Safari compatibility
-    video.muted = true; // Required for autoplay on mobile
+    // Set ready immediately to unblock UI
+    setIsMetadataReady(true);
     
-    video.onloadedmetadata = () => {
+    // Extract duration in background (non-blocking)
+    setTimeout(() => {
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.playsInline = true;
+      video.muted = true;
+      
+      video.onloadedmetadata = () => {
         if (video.duration && !isNaN(video.duration) && video.duration !== Infinity) {
-            setExtractedDuration(video.duration);
-            setIsMetadataReady(true);
-        } else {
-            // Fallback for mobile browsers that struggle with duration
-            // Try seeking to end to get duration
-            video.currentTime = Number.MAX_SAFE_INTEGER;
-            video.ontimeupdate = () => {
-                if (video.duration && !isNaN(video.duration) && video.duration !== Infinity) {
-                    setExtractedDuration(video.duration);
-                    setIsMetadataReady(true);
-                    video.ontimeupdate = null;
-                } else {
-                    // Final fallback
-                    setExtractedDuration(15);
-                    setIsMetadataReady(true);
-                }
-            };
-            setTimeout(() => {
-                if (!isMetadataReady) {
-                    setExtractedDuration(15);
-                    setIsMetadataReady(true);
-                }
-            }, 500);
+          setExtractedDuration(video.duration);
         }
-    };
+      };
 
-    video.onerror = () => {
-        console.warn('[Upload] Video metadata load failed, using default duration');
+      video.onerror = () => {
+        // Fallback - use default
         setExtractedDuration(15);
-        setIsMetadataReady(true);
-    };
+      };
 
-    video.src = url;
+      video.src = url;
+      
+      // Timeout fallback
+      setTimeout(() => {
+        if (extractedDuration === 0) {
+          setExtractedDuration(15);
+        }
+      }, 3000);
+    }, 0); // Non-blocking background task
   };
 
   const generateThumbnail = (videoUrl: string) => {
@@ -282,7 +271,12 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
   };
 
   const handlePost = async (isDraft: boolean = false) => {
-     console.log('[Upload] ⚡ INSTANT UPLOAD STARTED', { hasFile: !!selectedFile, device: navigator.userAgent.includes('Mobile') ? 'MOBILE' : 'DESKTOP' });
+     console.log('[Upload] ⚡⚡ ULTRA-FAST UPLOAD STARTED', { 
+       hasFile: !!selectedFile, 
+       fileSizeMB: selectedFile ? (selectedFile.size / (1024 * 1024)).toFixed(2) : 'N/A',
+       device: navigator.userAgent.includes('Mobile') ? 'MOBILE' : 'DESKTOP',
+       timestamp: new Date().toISOString()
+     });
      
      if (!selectedFile) {
        console.error('[Upload] No file selected');
@@ -290,7 +284,7 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
        return;
      }
      
-     // ⚡ INSTANT UPLOAD: Start immediately without ANY delays
+     // ⚡ IMMEDIATE UPLOAD: Start without ANY unnecessary delays
      setIsUploadingNow(true);
      setMode('processing'); 
      setProcessStep(0);
@@ -303,14 +297,15 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
          throw new Error('You must be logged in to upload videos');
        }
        
-       // ⚡ CRITICAL: Skip ALL validation and metadata extraction
-       // Upload file immediately in background
+       // ⚡ CRITICAL: No validation, no delays - just upload!
+       // The upload service immediately creates the video record (appears in feed NOW)
        const uploadPromise = uploadVideoAndCreatePost(selectedFile, {
          userId: user.id,
          description: description || 'Posted from Happy Africa',
          category: category,
          visibility: visibility || 'public',
          onProgress: (progress) => {
+           // Update progress smoothly
            setUploadProgress(progress);
            const progressStep = Math.floor((progress / 100) * PROCESS_STEPS.length);
            setProcessStep(Math.min(progressStep, PROCESS_STEPS.length - 1));
@@ -322,9 +317,8 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
        const result = await uploadPromise;
        
        if (result.success) {
-         console.log('[Upload] ✅ Video uploaded successfully! ID:', result.postId);
-         completeUpload(isDraft);
-         // ✅ CLOSE THE ENTIRE UPLOAD MODAL
+         console.log('[Upload] ✅ Upload complete! Video is live. Post ID:', result.postId);
+         // Don't wait for UI updates - close immediately
          onCancel();
        } else {
          // Upload failed - show error to user
