@@ -29,8 +29,8 @@ export default async function handler(req: any, res: any) {
     }
 
     // Get Supabase credentials with proper fallback
-    const supabaseUrl = process.env.VITE_SUPABASE_URL || "https://mlgxgylvndtvyqrdfvlw.supabase.co";
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || "";
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "https://mlgxgylvndtvyqrdfvlw.supabase.co";
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
 
     // Debug: Log environment setup (without exposing full keys)
     console.log("[API] Environment check:", {

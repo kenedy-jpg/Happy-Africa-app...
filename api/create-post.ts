@@ -27,11 +27,21 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: "userId required" });
     }
 
-    // Initialize Supabase
-    const supabase = createClient(
-      process.env.VITE_SUPABASE_URL || "https://mlgxgylvndtvyqrdfvlw.supabase.co",
-      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || ""
-    );
+    // Initialize Supabase with proper fallback
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "https://mlgxgylvndtvyqrdfvlw.supabase.co";
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+    
+    console.log('[API] Supabase config:', {
+      url: supabaseUrl ? '✓ set' : '✗ missing',
+      key: supabaseKey ? '✓ set' : '✗ missing'
+    });
+
+    if (!supabaseKey) {
+      console.error('[API] ❌ Supabase key is not configured');
+      return res.status(500).json({ error: "Server configuration error: Supabase key missing" });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
     let post;
     let error;

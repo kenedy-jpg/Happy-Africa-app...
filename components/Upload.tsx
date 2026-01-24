@@ -344,6 +344,12 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
        setIsUploadingNow(false);
        setMode('details'); // Go back to details view
 
+       console.error('[Upload] Upload error details:', {
+         message: error?.message,
+         code: error?.code,
+         stack: error?.stack
+       });
+
        // Check if this is a fallback save (video saved locally)
        const isFallbackSave = error?.message?.includes('saved locally as backup') || 
                               error?.message?.includes('Database save failed');
@@ -370,12 +376,18 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
        // Provide clear, actionable error messages
        let errorTitle = 'Upload Error';
        let errorMessage = '';
+       
+       // Show the actual error message first
+       console.log('[Upload] Error message:', error?.message);
 
        // Check for common issues with mobile-friendly messages
-       if (!error?.code && !error?.status) {
+       if (error?.message?.includes('Could not create post')) {
+         errorTitle = 'Failed to Create Post';
+         errorMessage = `Unable to create your post.\n\nError: ${error.message}\n\nPlease check:\n• Your internet connection\n• You are logged in\n• Try again in a moment`;
+       } else if (!error?.code && !error?.status) {
          // Network/connection issue
          errorTitle = 'Connection Error';
-         errorMessage = `Unable to connect. Please check:\n\n• Your internet connection\n• Try switching between WiFi/mobile data\n• Wait and try again in a moment\n\nIf this persists, the server may be temporarily unavailable.`;
+         errorMessage = `Unable to connect. Please check:\n\n• Your internet connection\n• Try switching between WiFi/mobile data\n• Wait and try again in a moment\n\nError: ${error?.message || 'Unknown error'}\n\nIf this persists, the server may be temporarily unavailable.`;
        } else if (diagnostic && !diagnostic.isAuthenticated) {
          errorTitle = 'Please Log In Again';
          errorMessage = 'Your session may have expired. Please log out and log back in, then try uploading again.';

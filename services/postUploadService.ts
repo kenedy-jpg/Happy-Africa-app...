@@ -53,28 +53,43 @@ export async function uploadVideoAndCreatePost(
     onProgress?.(1);
     console.log('[PostUpload] 🚀 Creating video record in database...');
     
-    const createRecordResponse = await fetch('/api/create-post', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        videoPath: '', // Will update this after upload
-        userId,
-        description: description || '',
-        category: category || 'comedy',
-        visibility: visibility || 'public',
-        isPlaceholder: true // Flag that this is a placeholder without file yet
-      })
-    });
+    let postId: string | null = null;
+    try {
+      const createRecordResponse = await fetch('/api/create-post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          videoPath: '', // Will update this after upload
+          userId,
+          description: description || '',
+          category: category || 'comedy',
+          visibility: visibility || 'public',
+          isPlaceholder: true // Flag that this is a placeholder without file yet
+        })
+      });
 
-    if (!createRecordResponse.ok) {
-      const error = await createRecordResponse.json();
-      throw new Error(`Failed to create video record: ${error.error || createRecordResponse.statusText}`);
+      if (!createRecordResponse.ok) {
+        const error = await createRecordResponse.json();
+        throw new Error(`Failed to create video record: ${error.error || createRecordResponse.statusText}`);
+      }
+
+      const responseData = await createRecordResponse.json();
+      if (!responseData.post || !responseData.post.id) {
+        console.error('[PostUpload] Invalid response from create-post:', responseData);
+        throw new Error('Invalid response from server - no post ID');
+      }
+      
+      postId = responseData.post.id;
+      console.log('[PostUpload] ✅ VIDEO RECORD CREATED INSTANTLY! Video now in feed. Post ID:', postId);
+      onProgress?.(3);
+    } catch (createError: any) {
+      console.error('[PostUpload] ❌ Failed to create video record:', createError.message);
+      // Video record creation failed - don't proceed
+      return {
+        success: false,
+        error: `Could not create post: ${createError.message}`
+      };
     }
-
-    const { post } = await createRecordResponse.json();
-    const postId = post.id;
-    console.log('[PostUpload] ✅ VIDEO RECORD CREATED INSTANTLY! Video now in feed. Post ID:', postId);
-    onProgress?.(3);
 
     // 📤 STEP 2: Get presigned upload URL (START PARALLEL - don't wait)
     console.log('[PostUpload] 📤 Requesting presigned URL...');
