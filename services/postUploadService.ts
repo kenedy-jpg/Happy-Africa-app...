@@ -261,7 +261,7 @@ async function uploadFileToPresignedUrl(
 export async function fetchAllPosts(limit = 50, offset = 0) {
   try {
     const { data, error } = await supabase
-      .from('posts')
+      .from('videos')
       .select(`
         *,
         profiles:user_id (
@@ -271,7 +271,7 @@ export async function fetchAllPosts(limit = 50, offset = 0) {
           display_name
         )
       `)
-      .eq('visibility', 'public')
+      .eq('is_published', true)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -280,7 +280,7 @@ export async function fetchAllPosts(limit = 50, offset = 0) {
       return [];
     }
 
-    return data || [];
+    return (data || []).filter((v: any) => !v.visibility || v.visibility === 'public');
   } catch (error) {
     console.error('[PostUpload] Failed to fetch posts:', error);
     return [];
@@ -291,6 +291,8 @@ export async function fetchAllPosts(limit = 50, offset = 0) {
  * Get public URL for a video path
  */
 export function getVideoPublicUrl(videoPath: string): string {
+  if (!videoPath) return '';
+  if (videoPath.startsWith('http')) return videoPath;
   const { data } = supabase.storage
     .from('videos')
     .getPublicUrl(videoPath);
@@ -307,20 +309,21 @@ export function subscribeToNewPosts(
   console.log('[PostUpload] Subscribing to real-time posts...');
 
   const subscription = supabase
-    .channel('posts_channel')
+    .channel('videos_channel')
     .on(
       'postgres_changes',
       {
         event: 'INSERT',
         schema: 'public',
-        table: 'posts'
+        table: 'videos',
+        filter: 'is_published=eq.true'
       },
       async (payload) => {
         console.log('[PostUpload] New post received:', payload.new);
         
         // Fetch full post with user info
         const { data } = await supabase
-          .from('posts')
+          .from('videos')
           .select(`
             *,
             profiles:user_id (
@@ -380,7 +383,7 @@ export async function deletePost(postId: string, videoPath: string): Promise<boo
 
     // Delete post record
     const { error: dbError } = await supabase
-      .from('posts')
+      .from('videos')
       .delete()
       .eq('id', postId);
 

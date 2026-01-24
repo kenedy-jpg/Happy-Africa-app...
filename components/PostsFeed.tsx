@@ -93,7 +93,8 @@ export const PostsFeed: React.FC<PostsFeedProps> = ({ onVideoClick }) => {
             key={post.id}
             post={post}
             onClick={() => {
-              const videoUrl = getVideoPublicUrl(post.video_path);
+              const storagePath = post.video_path || post.file_path || post.video_url || post.url;
+              const videoUrl = getVideoPublicUrl(storagePath);
               onVideoClick?.(videoUrl, post);
             }}
           />
@@ -117,7 +118,8 @@ const PostCard: React.FC<PostCardProps> = ({ post, onClick }) => {
     // Generate thumbnail from video
     const generateThumbnail = async () => {
       try {
-        const videoUrl = getVideoPublicUrl(post.video_path);
+        const storagePath = post.video_path || post.file_path || post.video_url || post.url;
+        const videoUrl = getVideoPublicUrl(storagePath);
         setThumbnailUrl(videoUrl);
       } catch (error) {
         console.error('[PostCard] Failed to load video:', error);
@@ -125,7 +127,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onClick }) => {
     };
 
     generateThumbnail();
-  }, [post.video_path]);
+  }, [post.video_path, post.file_path, post.video_url, post.url]);
 
   const handleMouseEnter = () => {
     if (videoRef.current) {

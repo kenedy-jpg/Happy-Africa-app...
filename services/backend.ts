@@ -192,103 +192,96 @@ export const backend = {
     },
 
     async fetchVideosSafe(queryModifier: (query: any) => any): Promise<Video[]> {
-        try {
-            // ✅ Query videos table to fetch all user-uploaded videos
-            const { data: vData, error: vError } = await queryModifier(supabase.from("videos").select("*, profiles!videos_user_id_fkey(id, username, full_name, avatar_url)"));
-            if (vError) throw vError;
-            if (!vData || vData.length === 0) return [];
-            
-            const userIds = Array.from(new Set(vData.map((v: any) => v.user_id))).filter(id => !!id);
-            if (userIds.length === 0) {
-              return await Promise.all(vData.map(async (v: any) => {
-                    let url = v.url || v.video_url || v.media_url;
-                    // ✅ For videos table, use video_path field if available
-                    if (v.video_path) {
-                        const { data } = supabase.storage.from('posts').getPublicUrl(v.video_path);
-                        url = data.publicUrl;
-                    } else if (v.file_path) {
-                        url = await this.getSignedUrl(v.file_path);
-                    } else if (v.url && (v.url.includes('/public/videos/') || !v.url.startsWith('http'))) {
-                        const path = decodeURIComponent(v.url.includes('/public/videos/') ? v.url.split('/public/videos/')[1] : v.url);
-                        url = await this.getSignedUrl(path);
-                    }
-                    return {
-                        id: v.id.toString(),
-                        url: url, 
-                        poster: v.poster_url || 'https://picsum.photos/400/800',
-                        description: v.description || '',
-                        hashtags: v.hashtags || [],
-                        likes: v.likes_count || 0,
-                        comments: v.comments_count || 0,
-                        shares: v.shares_count || 0,
-                        user: mapProfileToUser(null, v.user_id),
-                        musicTrack: v.music_track || 'Original Sound',
-                        category: v.category || 'general',
-                        location: v.location_name,
-                        duration: v.duration || 60,
-                        isLocal: false
-                    };
-                    }));
-            }
+      try {
+        const baseQuery = supabase
+          .from("videos")
+          .select("*, profiles!videos_user_id_fkey(id, username, full_name, avatar_url)")
+          .eq('is_published', true);
 
-            const { data: pData, error: pError } = await supabase.from("profiles").select("*").in("id", userIds);
-            const profileMap = new Map(pData?.map(p => [p.id, p]) || []);
-            
-            return vData.map((v: any) => {
-                // ✅ For videos table: use url field directly
-                let url = v.url || v.video_url || v.media_url;
-                
-                // If we have video_path, construct public URL directly (for newer uploads)
-                if (v.video_path) {
-                    const { data } = supabase.storage.from('posts').getPublicUrl(v.video_path);
-                    url = data.publicUrl;
-                } else if (!url && v.file_path) {
-                    const { data } = supabase.storage.from('posts').getPublicUrl(v.file_path);
-                    url = data.publicUrl;
-                }
-                
-                const durationVal = v.duration ? parseFloat(v.duration) : 15;
-                
-                // ✅ FIXED: Don't skip videos if profile is missing - create fallback user
-                // This ensures newly uploaded videos appear even if profile hasn't synced yet
-                let userProfile = mapProfileToUser(profileMap.get(v.user_id), v.user_id);
-                
-                if (!userProfile) {
-                    console.warn(`[Backend] No profile found for video ${v.id}, using fallback user`);
-                    // Create fallback user so video still shows
-                    userProfile = {
-                        id: v.user_id,
-                        username: 'user_' + v.user_id.slice(0, 8),
-                        displayName: 'Happy Africa User',
-                        avatarUrl: `https://ui-avatars.com/api/?name=User&background=random`,
-                        followers: 0,
-                        following: 0,
-                        likes: 0,
-                        coins: 0
-                    };
-                }
-                
-                return {
-                    id: v.id.toString(),
-                    url: url, 
-                    poster: v.poster_url || 'https://picsum.photos/400/800',
-                    description: v.description || '',
-                    hashtags: v.hashtags || [],
-                    likes: v.likes_count || 0,
-                    comments: v.comments_count || 0,
-                    shares: v.shares_count || 0,
-                    user: userProfile,
-                    musicTrack: v.music_track || 'Original Sound',
-                    category: v.category || 'general',
-                    location: v.location_name,
-                    duration: isNaN(durationVal) || durationVal <= 0 ? 60 : durationVal,
-                    isLocal: false
-                };
-            });
-        } catch (e: any) { 
-            console.error("[Backend] Supabase fetch error:", e?.message || e);
-            throw e; 
+        const { data: vData, error: vError } = await queryModifier(baseQuery);
+        if (vError) throw vError;
+        if (!vData || vData.length === 0) return [];
+
+        const visibleVideos = (vData || []).filter((v: any) => !v.visibility || v.visibility === 'public');
+        if (visibleVideos.length === 0) return [];
+
+        const resolvePublicUrl = (v: any): string => {
+          if (v.video_url && v.video_url.startsWith('http')) return v.video_url;
+          if (v.url && v.url.startsWith('http')) return v.url;
+          if (v.media_url && v.media_url.startsWith('http')) return v.media_url;
+
+          const storagePath = v.video_path || v.file_path || v.url || v.media_url;
+          if (!storagePath) return '';
+
+          const { data } = supabase.storage.from('videos').getPublicUrl(storagePath);
+          return data.publicUrl;
+        };
+
+        const userIds = Array.from(new Set(visibleVideos.map((v: any) => v.user_id))).filter(id => !!id);
+        if (userIds.length === 0) {
+          return visibleVideos.map((v: any) => ({
+            id: v.id.toString(),
+            url: resolvePublicUrl(v), 
+            poster: v.poster_url || 'https://picsum.photos/400/800',
+            description: v.description || '',
+            hashtags: v.hashtags || [],
+            likes: v.likes_count || 0,
+            comments: v.comments_count || 0,
+            shares: v.shares_count || 0,
+            user: mapProfileToUser(null, v.user_id),
+            musicTrack: v.music_track || 'Original Sound',
+            category: v.category || 'general',
+            location: v.location_name,
+            duration: v.duration || 60,
+            isLocal: false
+          }));
         }
+
+        const { data: pData, error: pError } = await supabase.from("profiles").select("*").in("id", userIds);
+        if (pError) throw pError;
+        const profileMap = new Map(pData?.map(p => [p.id, p]) || []);
+            
+        return visibleVideos.map((v: any) => {
+          const url = resolvePublicUrl(v);
+          const durationVal = v.duration ? parseFloat(v.duration) : 15;
+                
+          let userProfile = mapProfileToUser(profileMap.get(v.user_id), v.user_id);
+                
+          if (!userProfile) {
+            console.warn(`[Backend] No profile found for video ${v.id}, using fallback user`);
+            userProfile = {
+              id: v.user_id,
+              username: 'user_' + v.user_id.slice(0, 8),
+              displayName: 'Happy Africa User',
+              avatarUrl: `https://ui-avatars.com/api/?name=User&background=random`,
+              followers: 0,
+              following: 0,
+              likes: 0,
+              coins: 0
+            };
+          }
+                
+          return {
+            id: v.id.toString(),
+            url: url, 
+            poster: v.poster_url || 'https://picsum.photos/400/800',
+            description: v.description || '',
+            hashtags: v.hashtags || [],
+            likes: v.likes_count || 0,
+            comments: v.comments_count || 0,
+            shares: v.shares_count || 0,
+            user: userProfile,
+            musicTrack: v.music_track || 'Original Sound',
+            category: v.category || 'general',
+            location: v.location_name,
+            duration: isNaN(durationVal) || durationVal <= 0 ? 60 : durationVal,
+            isLocal: false
+          };
+        });
+      } catch (e: any) { 
+        console.error("[Backend] Supabase fetch error:", e?.message || e);
+        throw e; 
+      }
     },
     async getFeed(type: string, page: number = 0, pageSize: number = 10): Promise<Video[]> {
         try {
