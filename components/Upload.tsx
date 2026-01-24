@@ -289,6 +289,14 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
      setMode('processing'); 
      setProcessStep(0);
      setUploadProgress(0);
+
+     // Safety timeout: if upload takes more than 10 minutes, force close
+     const timeoutId = setTimeout(() => {
+       console.error('[Upload] Upload timeout - force closing modal');
+       setIsUploadingNow(false);
+       setMode('capture');
+       onCancel();
+     }, 600000); // 10 minutes
      
      try {
        // ✅ Get current user (should be cached - instant)
@@ -315,18 +323,26 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
        // Show processing screen while upload happens in background
        // Wait for upload to complete
        const result = await uploadPromise;
+       clearTimeout(timeoutId); // Clear timeout on completion
        
        if (result.success) {
          console.log('[Upload] ✅ Upload complete! Video is live. Post ID:', result.postId);
-         // Don't wait for UI updates - close immediately
-         onCancel();
+         setIsUploadingNow(false);
+         completeUpload(isDraft);
+         // Close modal after brief delay to let UI update
+         setTimeout(() => {
+           setMode('capture'); // Reset mode
+           onCancel(); // Close modal
+         }, 300);
        } else {
          // Upload failed - show error to user
          throw new Error(result.error || 'Upload failed');
        }
        
      } catch (error: any) {
+       clearTimeout(timeoutId); // Clear timeout on error
        setIsUploadingNow(false);
+       setMode('details'); // Go back to details view
 
        // Check if this is a fallback save (video saved locally)
        const isFallbackSave = error?.message?.includes('saved locally as backup') || 

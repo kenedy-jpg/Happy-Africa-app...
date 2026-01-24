@@ -156,6 +156,7 @@ export async function uploadVideoAndCreatePost(
     } catch (uploadError: any) {
       console.error('[PostUpload] Upload phase failed:', uploadError.message);
       // Video record exists - file will sync later when connection is better
+      onProgress?.(100); // Mark as complete even if file upload failed
       return {
         success: true, // Consider it successful since video is in feed
         videoPath: '',
