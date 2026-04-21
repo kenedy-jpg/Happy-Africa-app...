@@ -32,12 +32,12 @@ export const uploadDiagnostics = {
     try {
       // Test 1: Database Connection
       console.log('[Diagnostic] Testing database connection...');
-      const { error: connError } = await supabase.from('videos').select('id').limit(1);
+      const { error: connError } = await supabase.from('posts').select('id').limit(1);
       
       if (connError) {
         if (connError.code === 'PGRST116') {
-          results.errors.push('Database table "videos" does not exist');
-          results.recommendations.push('Run Supabase migration to create videos table');
+          results.errors.push('Database table "posts" does not exist');
+          results.recommendations.push('Run Supabase migration to create posts table');
         } else if ((connError as any).status === 401) {
           results.errors.push('Unauthorized - check Supabase API key');
           results.isDbConnected = false;
@@ -64,13 +64,13 @@ export const uploadDiagnostics = {
       // Test 3: Query Permission
       console.log('[Diagnostic] Testing query permissions...');
       const { error: queryError } = await supabase
-        .from('videos')
+        .from('posts')
         .select('id, user_id')
         .limit(1);
       
       if (queryError) {
         results.errors.push(`Query permission denied: ${queryError.message}`);
-        results.recommendations.push('Check RLS policies for "videos" table SELECT');
+        results.recommendations.push('Check RLS policies for "posts" table SELECT');
         results.canQueryVideos = false;
       } else {
         results.canQueryVideos = true;
@@ -81,39 +81,31 @@ export const uploadDiagnostics = {
         console.log('[Diagnostic] Testing insert permissions with test record...');
         
         const testRecord = {
-          id: `test_${Date.now()}`,
           user_id: user.id,
-          file_path: 'test.mp4',
-          video_url: 'https://example.com/test.mp4',
+          video_path: 'test.mp4',
           description: 'Diagnostic test',
-          poster_url: null,
-          duration: 0,
-          is_published: false,
-          likes_count: 0,
-          comments_count: 0,
-          shares_count: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          category: 'comedy',
+          visibility: 'public'
         };
 
         const { error: insertError } = await supabase
-          .from('videos')
+          .from('posts')
           .insert(testRecord);
         
         if (insertError) {
           results.errors.push(`Insert permission denied: ${insertError.message}`);
           
           if (insertError.code === 'PGRST501') {
-            results.recommendations.push('Enable INSERT in RLS policies for videos table');
+            results.recommendations.push('Enable INSERT in RLS policies for posts table');
           } else if ((insertError as any).code === '42703') {
-            results.recommendations.push('Check if all required columns exist in videos table');
+            results.recommendations.push('Check if all required columns exist in posts table');
           }
           
           results.canInsertVideos = false;
         } else {
           // Clean up test record
           try {
-            await supabase.from('videos').delete().eq('id', `test_${Date.now()}`);
+            await supabase.from('posts').delete().eq('user_id', user.id).eq('description', 'Diagnostic test').limit(1);
           } catch (e) {
             console.warn('[Diagnostic] Could not clean up test record');
           }

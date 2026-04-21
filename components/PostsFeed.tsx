@@ -21,6 +21,9 @@ export const PostsFeed: React.FC<PostsFeedProps> = ({ onVideoClick }) => {
     const unsubscribe = subscribeToNewPosts((newPost) => {
       console.log('[PostsFeed] New post added:', newPost);
       setPosts((prev) => [newPost, ...prev]);
+    }, (updatedPost) => {
+      console.log('[PostsFeed] Post updated:', updatedPost);
+      setPosts((prev) => prev.map(post => post.id === updatedPost.id ? updatedPost : post));
     });
 
     return () => {

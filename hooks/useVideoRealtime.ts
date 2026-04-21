@@ -24,23 +24,23 @@ export const useVideoRealtime = (options: UseVideoRealtimeOptions = {}) => {
     console.log('[useVideoRealtime] Setting up subscription', { userId });
 
     // Build filter
-    let filter = 'is_published=eq.true';
+    let filter = 'visibility=eq.public';
     if (userId) {
       filter = `user_id=eq.${userId}`;
     }
 
     const channel = supabase
-      .channel(`videos:${userId || 'all'}`)
+      .channel(`posts:${userId || 'all'}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'videos',
+          table: 'posts',
           filter
         },
         (payload) => {
-          console.log('[useVideoRealtime] New video:', payload);
+          console.log('[useVideoRealtime] New post:', payload);
           if (onVideoInserted) {
             onVideoInserted(payload.new);
           }
@@ -51,11 +51,11 @@ export const useVideoRealtime = (options: UseVideoRealtimeOptions = {}) => {
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'videos',
+          table: 'posts',
           filter
         },
         (payload) => {
-          console.log('[useVideoRealtime] Updated video:', payload);
+          console.log('[useVideoRealtime] Updated post:', payload);
           if (onVideoUpdated) {
             onVideoUpdated(payload.new);
           }
@@ -66,11 +66,11 @@ export const useVideoRealtime = (options: UseVideoRealtimeOptions = {}) => {
         {
           event: 'DELETE',
           schema: 'public',
-          table: 'videos',
+          table: 'posts',
           filter
         },
         (payload) => {
-          console.log('[useVideoRealtime] Deleted video:', payload);
+          console.log('[useVideoRealtime] Deleted post:', payload);
           if (onVideoDeleted) {
             onVideoDeleted(payload.old.id);
           }
@@ -105,8 +105,10 @@ export const fetchVideoWithProfile = async (videoData: any): Promise<Video | nul
     }
 
     // Get video URL (use public URL or signed URL)
-    const videoUrl = videoData.video_url || 
-      supabase.storage.from('videos').getPublicUrl(videoData.file_path).data.publicUrl;
+    const videoUrl = videoData.video_path ? 
+      supabase.storage.from('videos').getPublicUrl(videoData.video_path).data.publicUrl :
+      videoData.video_url || 
+      (videoData.file_path ? supabase.storage.from('videos').getPublicUrl(videoData.file_path).data.publicUrl : '');
 
     const video: Video = {
       id: videoData.id,

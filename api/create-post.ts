@@ -48,16 +48,14 @@ export default async function handler(req: any, res: any) {
 
     // 🚀 IMMEDIATE CREATION: Create placeholder video record (no file needed yet)
     if (isPlaceholder) {
-      console.log("[API] 🚀 Creating PLACEHOLDER video record (instant appearance)...");
+      console.log("[API] 🚀 Creating PLACEHOLDER post record (instant appearance)...");
       const { data: created, error: insertError } = await supabase
-        .from("videos")
+        .from("posts")
         .insert({
           user_id: userId,
-          url: '', // Empty until file is uploaded
-          media_url: '',
+          video_path: '', // Empty until file is uploaded
           description: description || "",
           category: category || "comedy",
-          is_published: true,
           visibility: visibility || 'public'
         })
         .select()
@@ -71,21 +69,19 @@ export default async function handler(req: any, res: any) {
         return res.status(500).json({ error: error.message });
       }
       
-      console.log("[API] ✅ PLACEHOLDER created! Video appears in feed IMMEDIATELY. ID:", post.id);
+      console.log("[API] ✅ PLACEHOLDER created! Post appears in feed IMMEDIATELY. ID:", post.id);
       return res.status(200).json({ post });
     }
 
-    // 🔄 UPDATE PHASE: Video record exists, update with file path
+    // 🔄 UPDATE PHASE: Post record exists, update with file path
     if (postId) {
-      console.log("[API] 🔄 Updating video record with file path...");
+      console.log("[API] 🔄 Updating post record with file path...");
       const { data: updated, error: updateError } = await supabase
-        .from("videos")
+        .from("posts")
         .update({
-          url: videoPath || '',
-          media_url: videoPath || '',
+          video_path: videoPath || '',
           description: description || "",
           category: category || "comedy",
-          is_published: true,
           visibility: visibility || 'public'
         })
         .eq("id", postId)
@@ -100,49 +96,46 @@ export default async function handler(req: any, res: any) {
         return res.status(500).json({ error: error.message });
       }
       
-      console.log("[API] ✅ Updated video with file. ID:", post.id);
+      console.log("[API] ✅ Updated post with file. ID:", post.id);
       return res.status(200).json({ post });
     }
 
     // 🔗 FALLBACK: Find and update by videoPath (from auto-save trigger)
     if (videoPath) {
       console.log("[API] 🔗 Looking for existing record by path...");
-      const { data: existingVideos, error: selectError } = await supabase
-        .from("videos")
+      const { data: existingPosts, error: selectError } = await supabase
+        .from("posts")
         .select("id")
-        .eq("url", videoPath)
+        .eq("video_path", videoPath)
         .limit(1);
 
-      if (existingVideos && existingVideos.length > 0) {
+      if (existingPosts && existingPosts.length > 0) {
         // Record exists - update with metadata
-        const videoId = existingVideos[0].id;
+        const postId = existingPosts[0].id;
         const { data: updated, error: updateError } = await supabase
-          .from("videos")
+          .from("posts")
           .update({
             user_id: userId,
             description: description || "",
             category: category || "comedy",
-            is_published: true,
             visibility: visibility || 'public'
           })
-          .eq("id", videoId)
+          .eq("id", postId)
           .select()
           .single();
         
         post = updated;
         error = updateError;
-        console.log("[API] ✅ Updated existing record by path. ID:", videoId);
+        console.log("[API] ✅ Updated existing record by path. ID:", postId);
       } else {
         // No record found - create new one
         const { data: created, error: insertError } = await supabase
-          .from("videos")
+          .from("posts")
           .insert({
             user_id: userId,
-            url: videoPath,
-            media_url: videoPath,
+            video_path: videoPath,
             description: description || "",
             category: category || "comedy",
-            is_published: true,
             visibility: visibility || 'public'
           })
           .select()

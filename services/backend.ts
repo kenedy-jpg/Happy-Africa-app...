@@ -194,15 +194,15 @@ export const backend = {
     async fetchVideosSafe(queryModifier: (query: any) => any): Promise<Video[]> {
       try {
         const baseQuery = supabase
-          .from("videos")
-          .select("*, profiles!videos_user_id_fkey(id, username, full_name, avatar_url)")
-          .eq('is_published', true);
+          .from("posts")
+          .select("*, profiles!posts_user_id_fkey(id, username, full_name, avatar_url)")
+          .eq('visibility', 'public');
 
         const { data: vData, error: vError } = await queryModifier(baseQuery);
         if (vError) throw vError;
         if (!vData || vData.length === 0) return [];
 
-        const visibleVideos = (vData || []).filter((v: any) => !v.visibility || v.visibility === 'public');
+        const visibleVideos = vData; // Already filtered by visibility = 'public'
         if (visibleVideos.length === 0) return [];
 
         const resolvePublicUrl = (v: any): string => {
@@ -402,8 +402,16 @@ export const backend = {
 
         // ✅ Insert video into database - this makes it persistent and visible to all users
         const { data: insertData, error: insertError } = await supabase
-          .from("videos")
-          .insert(videoRecord)
+          .from("posts")
+          .insert({
+            user_id: user.id,
+            video_path: fileName,
+            description: description || '',
+            category: 'comedy',
+            visibility: 'public',
+            poster_url: posterBase64 || null,
+            duration: duration && duration > 0 ? Math.round(duration) : 0
+          })
           .select()
           .single();
 
@@ -541,10 +549,11 @@ export const backend = {
     async repostVideo(videoId: string, thought: string): Promise<void> {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-        await supabase.from('videos').insert({
+        await supabase.from('posts').insert({
             user_id: user.id,
-            reposted_from: videoId,
-            description: thought
+            description: thought,
+            category: 'comedy',
+            visibility: 'public'
         }).catch(() => {});
     },
     async getVideosBySound(soundTitle: string): Promise<Video[]> { return await backend.content.fetchVideosSafe((q) => q.ilike('music_track', `%${soundTitle}%`)).catch(() => []); },

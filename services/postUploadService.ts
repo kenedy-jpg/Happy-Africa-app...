@@ -310,7 +310,7 @@ async function uploadFileToPresignedUrl(
 export async function fetchAllPosts(limit = 50, offset = 0) {
   try {
     const { data, error } = await supabase
-      .from('videos')
+      .from('posts')
       .select(`
         *,
         profiles:user_id (
@@ -320,7 +320,7 @@ export async function fetchAllPosts(limit = 50, offset = 0) {
           display_name
         )
       `)
-      .eq('is_published', true)
+      .eq('visibility', 'public')
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -329,7 +329,7 @@ export async function fetchAllPosts(limit = 50, offset = 0) {
       return [];
     }
 
-    return (data || []).filter((v: any) => !v.visibility || v.visibility === 'public');
+    return (data || []);
   } catch (error) {
     console.error('[PostUpload] Failed to fetch posts:', error);
     return [];
@@ -350,29 +350,30 @@ export function getVideoPublicUrl(videoPath: string): string {
 }
 
 /**
- * Subscribe to real-time post inserts
+ * Subscribe to real-time post inserts and updates
  */
 export function subscribeToNewPosts(
-  onNewPost: (post: any) => void
+  onNewPost: (post: any) => void,
+  onPostUpdate?: (post: any) => void
 ): () => void {
   console.log('[PostUpload] Subscribing to real-time posts...');
 
   const subscription = supabase
-    .channel('videos_channel')
+    .channel('posts_channel')
     .on(
       'postgres_changes',
       {
         event: 'INSERT',
         schema: 'public',
-        table: 'videos',
-        filter: 'is_published=eq.true'
+        table: 'posts',
+        filter: 'visibility=eq.public'
       },
       async (payload) => {
         console.log('[PostUpload] New post received:', payload.new);
         
         // Fetch full post with user info
         const { data } = await supabase
-          .from('videos')
+          .from('posts')
           .select(`
             *,
             profiles:user_id (
@@ -387,6 +388,37 @@ export function subscribeToNewPosts(
 
         if (data) {
           onNewPost(data);
+        }
+      }
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'posts',
+        filter: 'visibility=eq.public'
+      },
+      async (payload) => {
+        console.log('[PostUpload] Post updated:', payload.new);
+        
+        // Fetch updated post with user info
+        const { data } = await supabase
+          .from('posts')
+          .select(`
+            *,
+            profiles:user_id (
+              id,
+              username,
+              avatar_url,
+              display_name
+            )
+          `)
+          .eq('id', payload.new.id)
+          .single();
+
+        if (data && onPostUpdate) {
+          onPostUpdate(data);
         }
       }
     )
