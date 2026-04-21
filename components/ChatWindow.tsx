@@ -188,7 +188,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ currentUser, session, on
          {messages.map((msg) => (
            <div key={msg.id} className={`flex w-full mb-3 ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
               {!msg.isMe && <img src={chatPartner.avatarUrl} className="w-8 h-8 rounded-full mr-2 self-end mb-1" />}
-              <div className={`max-w-[70%] relative ${msg.attachment && msg.attachment.type !== 'audio' ? 'p-0 overflow-hidden' : 'px-4 py-2'} rounded-2xl text-sm ${msg.isMe ? 'bg-brand-pink text-white rounded-br-none' : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none shadow-sm'}`}>
+              <div className={`max-w-[70%] relative ${msg.attachment ? 'p-0 overflow-hidden' : 'px-4 py-2'} rounded-2xl text-sm ${msg.isMe ? 'bg-brand-pink text-white rounded-br-none' : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none shadow-sm'}`}>
                  {msg.attachment ? (
                      msg.attachment.type === 'image' ? (
                         <div className="flex flex-col">

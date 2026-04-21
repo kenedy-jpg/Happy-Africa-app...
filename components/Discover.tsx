@@ -168,7 +168,7 @@ export const Discover: React.FC<DiscoverProps> = ({ onVideoClick, onNavigate, on
   const renderSounds = () => (
       <div className="flex flex-col gap-4">
           {soundResults.map((sound, i) => (
-              <div key={i} className="flex items-center justify-between" onClick={() => onNavigate({ name: 'sound', id: sound.id, title: sound.title, artist: sound.artist, cover: sound.cover })}>
+              <div key={i} className="flex items-center justify-between" onClick={() => onNavigate({ name: 'sound', id: sound.id, title: sound.title, subtitle: sound.artist, cover: sound.cover })}>
                   <div className="flex items-center gap-3">
                       <div className="w-12 h-12 bg-gray-800 rounded flex items-center justify-center relative overflow-hidden">
                           <img src={sound.cover} className="w-full h-full object-cover opacity-70" />

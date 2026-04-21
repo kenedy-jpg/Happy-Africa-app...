@@ -448,7 +448,7 @@ export const Upload: React.FC<UploadProps> = ({ currentUser, onUpload, onCancel,
   return (
     <div className="fixed inset-0 bg-brand-indigo z-[100] flex flex-col">
         {mode === 'capture' && <CameraCapture onCapture={handleCameraCapture} onClose={onCancel} onSelectTrack={setMusicTrack} selectedTrack={musicTrack} creationContext={creationContext} onFileSelect={handleFileSelect} />}
-        {mode === 'edit' && <VideoEditor fileUrl={fileUrl || undefined} images={images} clips={clips} musicTrack={musicTrack} creationContext={creationContext} templateId={templateId} onCancel={() => setMode('capture')} onSave={(url, overlays) => { if (url) setFileUrl(url); setInteractiveElements(overlays?.map(o => ({ id: o.id.toString(), type: o.type === 'poll' ? 'poll' : 'sticker', content: o.content, x: o.x, y: o.y, scale: o.scale, rotation: 0, options: o.pollOptions })) || []); setMode('details'); }} />}
+        {mode === 'edit' && <VideoEditor fileUrl={fileUrl || undefined} images={images} clips={clips} musicTrack={musicTrack} creationContext={creationContext} templateId={templateId} onCancel={() => setMode('capture')} onSave={(url, overlays) => { if (url) setFileUrl(url); setInteractiveElements(overlays?.map(o => ({ id: o.id.toString(), type: o.type === 'poll' ? 'poll' : 'sticker', content: o.content, x: o.x, y: o.y, scale: o.scale, rotation: 0, options: o.options })) || []); setMode('details'); }} />}
         {mode === 'trim' && creationContext?.type === 'stitch' && <VideoTrimmer sourceVideo={creationContext.video} onCancel={onCancel} onNext={(data) => { setMode('capture'); }} />}
         {mode === 'details' && (
             <div className="flex-1 flex flex-col bg-brand-indigo overflow-hidden">

@@ -15,12 +15,9 @@ interface State {
  * ErrorBoundary component to catch rendering errors and provide a fallback UI.
  */
 export class ErrorBoundary extends React.Component<Props, State> {
-  constructor(props: Props) {
-    super(props);
-    this.state = {
-      hasError: false
-    };
-  }
+  state: State = {
+    hasError: false
+  };
 
   static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };

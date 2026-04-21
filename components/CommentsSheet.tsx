@@ -296,7 +296,7 @@ export const CommentsSheet: React.FC<CommentsSheetProps> = ({
                  comments.map(comment => (
                     <div 
                         key={comment.id} 
-                        ref={el => commentRefs.current[comment.id] = el}
+                        ref={el => { if (el) commentRefs.current[comment.id] = el; }}
                         className={`flex gap-3 active:opacity-70 transition-all rounded-lg p-1 ${highlightCommentId === comment.id ? 'bg-white/10' : ''}`}
                         onTouchStart={() => handleCommentTouchStart(comment)}
                         onTouchEnd={handleCommentTouchEnd}

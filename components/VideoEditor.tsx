@@ -238,7 +238,16 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({ fileUrl, images, clips
       <div className="flex justify-between items-center p-4 pt-safe z-20 bg-brand-dark/50 backdrop-blur-md sticky top-0 shrink-0">
           <button onClick={onCancel} className="p-2 -ml-2 text-white active:opacity-50"><X /></button>
           <button 
-            onClick={() => onSave(isMultiClip ? clips[0].url : fileUrl, overlays)} 
+            onClick={() => onSave(isMultiClip ? clips[0].url : fileUrl, overlays.map(o => ({
+              id: o.id.toString(),
+              type: o.type === 'poll' ? 'poll' : 'sticker',
+              content: o.content,
+              x: o.x,
+              y: o.y,
+              scale: o.scale,
+              rotation: 0,
+              options: o.pollOptions
+            })))} 
             className="bg-brand-pink text-white px-6 py-2 rounded-full font-black text-xs uppercase tracking-widest shadow-xl shadow-brand-pink/40 hover:brightness-110 active:scale-95 transition-all"
           >
              NEXT
