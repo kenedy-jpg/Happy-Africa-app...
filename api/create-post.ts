@@ -50,7 +50,7 @@ export default async function handler(req: any, res: any) {
     if (isPlaceholder) {
       console.log("[API] 🚀 Creating PLACEHOLDER post record (instant appearance)...");
       const { data: created, error: insertError } = await supabase
-        .from("posts")
+        .from("videos")
         .insert({
           user_id: userId,
           video_path: '', // Empty until file is uploaded
@@ -77,7 +77,7 @@ export default async function handler(req: any, res: any) {
     if (postId) {
       console.log("[API] 🔄 Updating post record with file path...");
       const { data: updated, error: updateError } = await supabase
-        .from("posts")
+        .from("videos")
         .update({
           video_path: videoPath || '',
           description: description || "",
@@ -104,7 +104,7 @@ export default async function handler(req: any, res: any) {
     if (videoPath) {
       console.log("[API] 🔗 Looking for existing record by path...");
       const { data: existingPosts, error: selectError } = await supabase
-        .from("posts")
+        .from("videos")
         .select("id")
         .eq("video_path", videoPath)
         .limit(1);
@@ -113,7 +113,7 @@ export default async function handler(req: any, res: any) {
         // Record exists - update with metadata
         const postId = existingPosts[0].id;
         const { data: updated, error: updateError } = await supabase
-          .from("posts")
+          .from("videos")
           .update({
             user_id: userId,
             description: description || "",
@@ -130,7 +130,7 @@ export default async function handler(req: any, res: any) {
       } else {
         // No record found - create new one
         const { data: created, error: insertError } = await supabase
-          .from("posts")
+          .from("videos")
           .insert({
             user_id: userId,
             video_path: videoPath,
