@@ -28,22 +28,23 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: "fileName and contentType required" });
     }
 
-    // Get Supabase credentials with proper fallback
-    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "https://mlgxgylvndtvyqrdfvlw.supabase.co";
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+    const keyType = process.env.SUPABASE_SERVICE_ROLE_KEY ? 'service_role' : process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY ? 'anon' : 'missing';
 
-    // Debug: Log environment setup (without exposing full keys)
     console.log("[API] Environment check:", {
       hasViteUrl: !!process.env.VITE_SUPABASE_URL,
       hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
       hasAnonKey: !!process.env.VITE_SUPABASE_ANON_KEY,
-      usingUrl: supabaseUrl.substring(0, 20) + "..."
+      usingUrl: supabaseUrl ? `${supabaseUrl.substring(0, 20)}...` : 'none',
+      keyType
     });
 
-    if (!supabaseKey) {
+    if (!supabaseUrl || !supabaseKey) {
       console.error("[API] ❌ CRITICAL: No Supabase credentials found!");
       console.error("[API] Required environment variables missing:");
-      console.error("  - SUPABASE_SERVICE_ROLE_KEY or VITE_SUPABASE_ANON_KEY");
+      console.error("  - VITE_SUPABASE_URL or SUPABASE_URL");
+      console.error("  - SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY or VITE_SUPABASE_ANON_KEY");
       return res.status(500).json({ 
         error: "Server configuration error: Missing Supabase credentials",
         debug: "Add SUPABASE_SERVICE_ROLE_KEY and VITE_SUPABASE_URL to Vercel environment variables"

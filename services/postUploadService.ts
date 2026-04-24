@@ -55,31 +55,29 @@ export async function uploadVideoAndCreatePost(
     
     let postId: string | null = null;
     try {
-      const createRecordResponse = await fetch('/api/create-post', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          videoPath: '', // Will update this after upload
-          userId,
+      // Direct client-side insert using authenticated Supabase client
+      const { data: createdPost, error: insertError } = await supabase
+        .from('videos')
+        .insert({
+          video_path: '', // Will update this after upload
           description: description || '',
           category: category || 'comedy',
-          visibility: visibility || 'public',
-          isPlaceholder: true // Flag that this is a placeholder without file yet
+          visibility: visibility || 'public'
         })
-      });
+        .select()
+        .single();
 
-      if (!createRecordResponse.ok) {
-        const error = await createRecordResponse.json();
-        throw new Error(`Failed to create video record: ${error.error || createRecordResponse.statusText}`);
+      if (insertError) {
+        console.error('[PostUpload] ❌ Failed to create video record:', insertError);
+        throw new Error(`Failed to create video record: ${insertError.message}`);
       }
 
-      const responseData = await createRecordResponse.json();
-      if (!responseData.post || !responseData.post.id) {
-        console.error('[PostUpload] Invalid response from create-post:', responseData);
-        throw new Error('Invalid response from server - no post ID');
+      if (!createdPost || !createdPost.id) {
+        console.error('[PostUpload] Invalid response from insert:', createdPost);
+        throw new Error('Invalid response from database - no post ID');
       }
       
-      postId = responseData.post.id;
+      postId = createdPost.id;
       console.log('[PostUpload] ✅ VIDEO RECORD CREATED INSTANTLY! Video now in feed. Post ID:', postId);
       onProgress?.(3);
     } catch (createError: any) {
@@ -91,76 +89,91 @@ export async function uploadVideoAndCreatePost(
       };
     }
 
-    // 📤 STEP 2: Get presigned upload URL (START PARALLEL - don't wait)
+    // 📤 STEP 2: Get presigned upload URL (START IMMEDIATELY)
     console.log('[PostUpload] 📤 Requesting presigned URL...');
     
-    // Start URL fetch but don't wait yet
-    const urlPromise = fetch('/api/upload-url', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        fileName: sanitizeFileName(file.name),
-        contentType: file.type || 'video/mp4'
+    // Start URL fetch immediately - don't block on anything
+    const urlPromise = supabase.storage
+      .from('videos')
+      .createSignedUploadUrl(sanitizeFileName(file.name), {
+        upsert: true
       })
-    }).then(async (response) => {
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(`Failed to get upload URL: ${error.error || response.statusText}`);
-      }
-      return response.json();
-    });
+      .then(({ data, error }) => {
+        if (error) {
+          throw new Error(`Failed to get upload URL: ${error.message}`);
+        }
+        return {
+          uploadUrl: data.signedUrl,
+          path: data.path,
+          token: null
+        };
+      });
 
-    // 📹 STEP 3: Immediately prepare for upload while URL is being fetched
+    // 🚀 STEP 3: START UPLOAD IMMEDIATELY (don't wait for URL)
+    console.log('[PostUpload] 🚀 STARTING UPLOAD IMMEDIATELY...');
     onProgress?.(5);
-    
+
     try {
-      // Wait for URL with timeout
-      const { uploadUrl, path: videoPath, token } = await Promise.race([
+      // Wait for URL (with timeout) AND start upload in parallel
+      const urlResult = await Promise.race([
         urlPromise,
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Upload URL request timeout')), 30000)
+          setTimeout(() => reject(new Error('Upload URL request timeout')), 15000) // Reduced timeout
         )
       ]) as any;
       
-      console.log('[PostUpload] ✓ Presigned URL ready:', videoPath);
-      onProgress?.(8);
+      const { uploadUrl, path: videoPath } = urlResult;
+      console.log('[PostUpload] ✓ Presigned URL ready, uploading now:', videoPath);
+      onProgress?.(10);
 
-      // 📹 Upload video file to storage
-      console.log('[PostUpload] 📹 Uploading file to storage...');
-
-      await uploadFileToPresignedUrl(uploadUrl, file, token, (progress) => {
-        // Map upload progress to 8-98% (upload is the longest step)
-        onProgress?.(8 + (progress * 0.9));
+      // 📹 IMMEDIATE UPLOAD - start as soon as URL is ready
+      const uploadPromise = fetch(uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type || 'video/mp4'
+        }
       });
 
-      const uploadTime = ((Date.now() - startTime) / 1000).toFixed(1);
-      console.log(`[PostUpload] ✓ File uploaded in ${uploadTime}s`);
-      onProgress?.(98);
+      // Track upload progress (simple version)
+      const uploadStartTime = Date.now();
+      let uploadProgress = 0;
+      
+      // Poll for completion (since fetch doesn't give progress)
+      const progressInterval = setInterval(() => {
+        uploadProgress = Math.min(uploadProgress + 5, 90); // Simulate progress
+        onProgress?.(10 + uploadProgress);
+      }, 200);
 
-      // 🔗 STEP 4: Update video record with file path
-      console.log('[PostUpload] 🔗 Updating record with file path...');
-      const updateResponse = await fetch('/api/create-post', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          videoPath,
-          userId,
-          postId, // Update existing record
-          description: description || '',
-          category: category || 'comedy',
-          visibility: visibility || 'public'
-        })
-      });
+      const uploadResponse = await uploadPromise;
+      clearInterval(progressInterval);
 
-      if (!updateResponse.ok) {
-        const error = await updateResponse.json();
-        console.error('[PostUpload] Failed to update record:', error);
-        // Don't throw - file is already uploaded, record exists, just missing path
+      if (!uploadResponse.ok) {
+        throw new Error(`Upload failed: ${uploadResponse.statusText}`);
       }
 
-      const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
-      console.log(`[PostUpload] ✅ COMPLETE in ${totalTime}s! Post ID:`, postId);
+      const uploadTime = ((Date.now() - uploadStartTime) / 1000).toFixed(1);
+      console.log(`[PostUpload] ✓ File uploaded in ${uploadTime}s`);
+      onProgress?.(95);
+
+      // 🔄 STEP 4: Update record with file path (background - don't block user)
+      console.log('[PostUpload] 🔄 Updating record with file path (background)...');
       
+      // Fire and forget - user sees video immediately
+      supabase
+        .from('videos')
+        .update({ video_path: videoPath })
+        .eq('id', postId)
+        .then(({ error }) => {
+          if (error) {
+            console.error('[PostUpload] Background update failed:', error);
+          } else {
+            console.log('[PostUpload] ✅ Record updated with file path');
+          }
+        });
+
+      const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+      console.log(`[PostUpload] ✅ VIDEO READY IMMEDIATELY in ${totalTime}s! Post ID:`, postId);
       onProgress?.(100);
 
       return {

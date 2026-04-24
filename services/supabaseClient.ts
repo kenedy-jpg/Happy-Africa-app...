@@ -4,26 +4,16 @@ import { createClient } from "@supabase/supabase-js";
  * Safely retrieves environment variables to prevent module-level crashes 
  * in browser environments where 'process' might not be defined.
  */
-const getEnvVar = (key: string): string | undefined => {
-    try {
-        if (typeof process !== 'undefined' && process.env) {
-            return (process.env as any)[key];
-        }
-    } catch (e) {
-        // Fallback
-    }
-    return undefined;
-};
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-const SUPABASE_URL = getEnvVar('VITE_SUPABASE_URL') || 'https://mlgxgylvndtvyqrdfvlw.supabase.co';
-const SUPABASE_ANON_KEY = getEnvVar('VITE_SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1sZ3hneWx2bmR0dnlxcmRmdmx3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2MjYyMjYsImV4cCI6MjA4MTIwMjIyNn0.nc5Uv2Bf9UgfqWc2Ph8LQwqTY09c9IY6WQqtKBXpVr0';
-
-// Warn if using fallback values
-if (!getEnvVar('VITE_SUPABASE_URL') || !getEnvVar('VITE_SUPABASE_ANON_KEY')) {
-    console.warn(
-        '⚠️ [Supabase] Using fallback configuration. ' +
-        'Create a .env file with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY ' +
-        'for proper configuration. See UPLOAD_FIX_GUIDE.md for details.'
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    const missing = [];
+    if (!SUPABASE_URL) missing.push('VITE_SUPABASE_URL');
+    if (!SUPABASE_ANON_KEY) missing.push('VITE_SUPABASE_PUBLISHABLE_KEY or VITE_SUPABASE_ANON_KEY');
+    throw new Error(
+        `Missing Supabase client environment variables: ${missing.join(', ')}. ` +
+        'Set them in Vercel or .env and restart the app.'
     );
 }
 
